@@ -218,12 +218,26 @@ def test_resources_endpoint_all(client):
 
 @pytest.fixture
 def offline(monkeypatch):
-    """Force fallback mode by ensuring no API key is present."""
+    """Force fallback mode by ensuring no provider key is present."""
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
 def test_fallback_is_used_without_key(offline):
     assert ai_assistant.is_available() is False
+    assert ai_assistant.active_provider() == "offline"
+
+
+def test_provider_selection_prefers_groq(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    assert ai_assistant.active_provider() == "groq"
+
+
+def test_provider_selection_falls_back_to_claude(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    assert ai_assistant.active_provider() == "claude"
 
 
 def test_fallback_reply_matches_topic(offline):
@@ -274,4 +288,6 @@ def test_chat_endpoint_rejects_bad_body(client):
 def test_status_endpoint_reports_mode(client):
     res = client.get("/api/status")
     assert res.status_code == 200
-    assert "ai_enabled" in res.get_json()
+    body = res.get_json()
+    assert "ai_enabled" in body
+    assert body["provider"] in ("groq", "claude", "offline")

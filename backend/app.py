@@ -163,8 +163,13 @@ def chat():
 
 @app.get("/api/status")
 def status():
-    """Report whether the live AI service is configured (vs fallback mode)."""
-    return jsonify({"ai_enabled": ai_assistant.is_available()})
+    """Report whether the live AI service is configured, and which provider."""
+    return jsonify(
+        {
+            "ai_enabled": ai_assistant.is_available(),
+            "provider": ai_assistant.active_provider(),
+        }
+    )
 
 
 @app.get("/health")

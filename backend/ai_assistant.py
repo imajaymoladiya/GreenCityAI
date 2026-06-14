@@ -1,19 +1,19 @@
-"""AI assistant ("Terra") for GreenCityAI, powered by the Claude API.
+"""AI assistant ("Terra") for GreenCityAI.
 
-This module wraps the Anthropic SDK behind a tiny, well-defined surface so the
-web layer never touches model details. It has two modes:
+The assistant is **provider-agnostic**. It picks the best available backend at
+runtime and exposes a single streaming generator, ``stream_reply``, so the web
+layer never needs to know which provider answered:
 
-* **Live mode** — when ``ANTHROPIC_API_KEY`` is set, it streams a response from
-  Claude (Opus 4.8 by default), grounded in the user's own footprint so advice
-  is personalised rather than generic.
-* **Fallback mode** — when no key is configured, a lightweight keyword responder
-  keeps the chatbot useful (and the app fully runnable for review/CI) without
-  any network calls. This makes the feature degrade gracefully instead of
-  breaking.
+1. **Groq** — used when ``GROQ_API_KEY`` is set. Fast, OpenAI-compatible
+   inference (Llama 3.3 70B by default).
+2. **Claude** — used when ``ANTHROPIC_API_KEY`` is set (and no Groq key). Claude
+   Opus 4.8 via the Anthropic SDK.
+3. **Offline fallback** — when no key is configured, a lightweight keyword
+   responder keeps the chatbot useful and the app fully runnable for review/CI.
 
-The public API is a single generator, ``stream_reply``, that yields text chunks
-in both modes — so the caller (and the SSE endpoint) is identical regardless of
-which mode is active.
+In every mode the reply is **grounded in the user's own footprint** so advice is
+personalised rather than generic. Provider SDKs are imported lazily, so the app
+runs even if only one (or neither) SDK is installed.
 """
 
 from __future__ import annotations
@@ -21,8 +21,9 @@ from __future__ import annotations
 import os
 from typing import Dict, Iterator, List, Optional
 
-# Default to the most capable model; overridable for cost/speed tuning.
-MODEL = os.environ.get("GREENCITY_MODEL", "claude-opus-4-8")
+# Per-provider default models, overridable via env for cost/speed tuning.
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+CLAUDE_MODEL = os.environ.get("GREENCITY_MODEL", "claude-opus-4-8")
 
 # Hard caps protect the prompt from abuse and runaway cost.
 MAX_HISTORY_MESSAGES = 20
@@ -49,9 +50,18 @@ SYSTEM_PROMPT = (
 )
 
 
+def active_provider() -> str:
+    """Return the backend that will handle requests: 'groq', 'claude', or 'offline'."""
+    if os.environ.get("GROQ_API_KEY"):
+        return "groq"
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "claude"
+    return "offline"
+
+
 def is_available() -> bool:
-    """True when a Claude API key is configured (live mode)."""
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    """True when a live AI provider is configured (i.e. not offline fallback)."""
+    return active_provider() != "offline"
 
 
 def _format_footprint(footprint: Optional[dict]) -> str:
@@ -89,39 +99,63 @@ def _sanitise_history(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
 def stream_reply(
     messages: List[Dict[str, str]], footprint: Optional[dict] = None
 ) -> Iterator[str]:
-    """Yield the assistant's reply as text chunks (live or fallback)."""
+    """Yield the assistant's reply as text chunks, routing to the active provider."""
     history = _sanitise_history(messages)
     if not history or history[-1]["role"] != "user":
         yield "Ask me anything about reducing your carbon footprint!"
         return
 
-    if is_available():
-        yield from _stream_from_claude(history, footprint)
+    system = SYSTEM_PROMPT + _format_footprint(footprint)
+    provider = active_provider()
+    if provider == "groq":
+        yield from _stream_from_groq(system, history)
+    elif provider == "claude":
+        yield from _stream_from_claude(system, history)
     else:
         yield from _fallback_reply(history[-1]["content"], footprint)
 
 
-def _stream_from_claude(
-    history: List[Dict[str, str]], footprint: Optional[dict]
-) -> Iterator[str]:
-    """Stream a grounded response from Claude. Imported lazily so the app runs
-    even if the SDK isn't installed in fallback-only deployments."""
+def _stream_from_groq(system: str, history: List[Dict[str, str]]) -> Iterator[str]:
+    """Stream a grounded response from Groq (OpenAI-compatible chat completions)."""
+    import groq
+
+    client = groq.Groq()  # reads GROQ_API_KEY from the environment
+    messages = [{"role": "system", "content": system}, *history]
+    try:
+        stream = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=messages,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+    except groq.GroqError as exc:  # network / auth / rate-limit, etc.
+        yield (
+            "Sorry — I couldn't reach the AI service just now "
+            f"({exc.__class__.__name__}). Please try again in a moment."
+        )
+
+
+def _stream_from_claude(system: str, history: List[Dict[str, str]]) -> Iterator[str]:
+    """Stream a grounded response from Claude via the Anthropic SDK."""
     import anthropic
 
     client = anthropic.Anthropic()
-    system = SYSTEM_PROMPT + _format_footprint(footprint)
     try:
         # Thinking is left off for snappy, low-latency chat; streaming avoids
         # request timeouts and gives the UI a live typing effect.
         with client.messages.stream(
-            model=MODEL,
+            model=CLAUDE_MODEL,
             max_tokens=MAX_OUTPUT_TOKENS,
             system=system,
             messages=history,
         ) as stream:
             for text in stream.text_stream:
                 yield text
-    except anthropic.APIError as exc:  # network / auth / rate-limit, etc.
+    except anthropic.APIError as exc:
         yield (
             "Sorry — I couldn't reach the AI service just now "
             f"({exc.__class__.__name__}). Please try again in a moment."
@@ -129,7 +163,7 @@ def _stream_from_claude(
 
 
 # --------------------------------------------------------------------------- #
-# Fallback responder — keyword-based, no network required.
+# Offline fallback responder — keyword-based, no network required.
 # --------------------------------------------------------------------------- #
 
 _FALLBACK_TIPS = {
@@ -168,7 +202,7 @@ _FALLBACK_TIPS = {
 
 
 def _fallback_reply(user_text: str, footprint: Optional[dict]) -> Iterator[str]:
-    """A useful, deterministic answer when the AI service isn't configured."""
+    """A useful, deterministic answer when no AI provider is configured."""
     lowered = user_text.lower()
     matched = [
         tip

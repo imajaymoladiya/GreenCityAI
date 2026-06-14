@@ -5,8 +5,9 @@ a personalised carbon-footprint estimate, a **prioritised action plan**, curated
 learning videos, and a **conversational AI chatbot** ("Terra") that answers
 sustainability questions — grounded in *that user's* own footprint.
 
-Built with a Python (Flask) backend, a vanilla-JavaScript dashboard, and the
-**Claude API** (Claude Opus 4.8) for the chat experience.
+Built with a Python (Flask) backend, a vanilla-JavaScript dashboard, and a
+**provider-agnostic AI layer** (Groq's Llama 3.3 70B by default, with Claude
+Opus 4.8 as an alternative) for the chat experience.
 
 > **Chosen vertical:** Sustainability / Carbon Footprint Awareness for citizens
 > of a "green city".
@@ -36,9 +37,9 @@ levels:
 - 🧠 **Context-aware action plan** — rule-based decision engine that only
   suggests changes that apply to the user (a cyclist is never told to drive
   less) and ranks them by impact.
-- 💬 **Terra, the AI chatbot** — a streaming Claude-powered assistant. Ask "how
-  do I fly less?" and get a direct, personalised answer that references your own
-  biggest emission sources.
+- 💬 **Terra, the AI chatbot** — a streaming, AI-powered assistant (Groq or
+  Claude). Ask "how do I fly less?" and get a direct, personalised answer that
+  references your own biggest emission sources.
 - 📺 **Curated learning resources** — reliable YouTube search links for the
   user's top emission category.
 - ♿ **Accessible & responsive** — keyboard friendly, screen-reader support,
@@ -46,14 +47,17 @@ levels:
 
 ### Graceful degradation
 
-The chatbot works **with or without** an API key:
+The chatbot picks the best available backend at runtime, so it works **with or
+without** an API key:
 
-| Mode | When | Behaviour |
-| --- | --- | --- |
-| **Live** | `ANTHROPIC_API_KEY` is set | Streams real answers from Claude Opus 4.8, grounded in the user's footprint. |
-| **Fallback** | No key configured | A built-in keyword responder gives useful, deterministic advice — so the app (and CI) runs fully offline. |
+| Priority | Provider | When | Behaviour |
+| --- | --- | --- | --- |
+| 1 | **Groq** | `GROQ_API_KEY` is set | Streams fast answers from Llama 3.3 70B, grounded in the user's footprint. |
+| 2 | **Claude** | `ANTHROPIC_API_KEY` is set | Streams answers from Claude Opus 4.8. |
+| 3 | **Offline fallback** | No key configured | A built-in keyword responder gives useful, deterministic advice — so the app (and CI) runs fully offline. |
 
-The header badge shows which mode is active.
+The header badge shows which provider is active. The same streaming generator
+serves all three, so the web layer is identical regardless of backend.
 
 ---
 
@@ -83,7 +87,7 @@ The "smart" behaviour is intentionally **transparent and explainable**:
 GreenCityAI/
 ├── backend/
 │   ├── carbon_engine.py     # Pure logic: validation, estimation, recommendations
-│   ├── ai_assistant.py      # Claude (Opus 4.8) chat wrapper + offline fallback
+│   ├── ai_assistant.py      # Provider-agnostic chat (Groq / Claude) + fallback
 │   ├── youtube_resources.py # Curated, hallucination-proof learning links
 │   └── app.py               # Flask REST API + SSE chat + static server
 ├── frontend/
@@ -91,7 +95,7 @@ GreenCityAI/
 │   ├── css/styles.css        # Distinctive design, WCAG-AA, responsive
 │   └── js/app.js            # Calculator, resources, streaming chat (no inline JS)
 ├── tests/
-│   └── test_carbon_engine.py  # 35 tests: engine, AI fallback, API contract
+│   └── test_carbon_engine.py  # 37 tests: engine, AI providers/fallback, API
 ├── requirements.txt
 ├── .env.example             # Copy to .env and add your API key
 ├── LICENSE · README.md
@@ -117,8 +121,8 @@ GreenCityAI/
 pip install -r requirements.txt
 
 # 2. (Optional) enable the live AI chatbot
-cp .env.example .env          # then paste your key into ANTHROPIC_API_KEY
-#   Get a key at https://console.anthropic.com/
+cp .env.example .env          # then paste your key into GROQ_API_KEY
+#   Get a free Groq key at https://console.groq.com/keys
 #   Skip this step to run in offline fallback mode — the app still works.
 
 # 3. Start the server
@@ -133,7 +137,7 @@ On Windows PowerShell, step 3 is the same: `python backend\app.py`.
 ## Run the tests
 
 ```bash
-pytest -q          # 35 tests, no network or API key required
+pytest -q          # 37 tests, no network or API key required
 ```
 
 ---
@@ -153,7 +157,7 @@ pytest -q          # 35 tests, no network or API key required
 - **Efficiency** — the footprint engine is pure O(1) arithmetic with no DB or
   network; chat responses are **streamed** (SSE) so the UI shows tokens as they
   arrive instead of blocking; YouTube links are computed, not fetched.
-- **Testing** — 35 `pytest` cases covering validation, the footprint maths, the
+- **Testing** — 37 `pytest` cases covering validation, the footprint maths, the
   recommendation prioritisation, the resource builder, the AI fallback
   responder, and the full HTTP contract (including the SSE stream) — all
   runnable offline.

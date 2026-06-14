@@ -305,14 +305,18 @@ function closeChat() {
   toggle.focus();
 }
 
+const PROVIDER_LABELS = { groq: "Groq", claude: "Claude" };
+
 async function showAiStatus() {
   try {
     const res = await fetch(API.status);
-    const { ai_enabled } = await res.json();
+    const { ai_enabled, provider } = await res.json();
     const badge = document.getElementById("ai-badge");
     const text = document.getElementById("ai-badge-text");
     const dot = badge.querySelector(".ai-dot");
-    text.textContent = ai_enabled ? "AI assistant online" : "AI assistant (offline mode)";
+    text.textContent = ai_enabled
+      ? `AI online · ${PROVIDER_LABELS[provider] || "AI"}`
+      : "AI assistant (offline mode)";
     if (!ai_enabled) dot.classList.add("is-offline");
     badge.hidden = false;
   } catch { /* badge is optional */ }
