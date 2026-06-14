@@ -1,13 +1,13 @@
 /* GreenCityAI frontend logic.
  *
- * Responsibilities:
- *   - populate the form's dropdowns from the API (single source of truth),
- *   - submit the user's context and render the analysis,
- *   - keep the UI accessible (status messages, text table, focus management).
+ * Three concerns, kept separate:
+ *   1. The footprint calculator (form → /api/analyse → chart + plan).
+ *   2. Curated YouTube resources for the user's top emission category.
+ *   3. The streaming AI chat with Terra (/api/chat over Server-Sent Events).
  *
- * The code uses no inline event handlers and never injects raw HTML from the
- * server, which keeps the surface clear of XSS. All dynamic text is set with
- * textContent.
+ * Security: all dynamic text is inserted with textContent and all links are
+ * built from data the server returned — no raw HTML is ever injected, so the
+ * UI has no XSS surface. External links open with rel="noopener noreferrer".
  */
 
 "use strict";
@@ -15,41 +15,27 @@
 const API = {
   options: "/api/options",
   analyse: "/api/analyse",
+  resources: "/api/resources",
+  chat: "/api/chat",
+  status: "/api/status",
 };
 
-// Human-readable labels for machine values returned by the API.
 const LABELS = {
-  petrol_car: "Petrol car",
-  diesel_car: "Diesel car",
-  electric_car: "Electric car",
-  motorbike: "Motorbike",
-  bus: "Bus",
-  train: "Train",
-  bicycle: "Bicycle",
-  walk: "Walking",
-  meat_heavy: "Meat with most meals",
-  average: "Average / mixed",
-  low_meat: "Low meat",
-  vegetarian: "Vegetarian",
-  vegan: "Vegan",
-  natural_gas: "Natural gas",
-  oil: "Oil",
-  electric: "Electric",
-  heat_pump: "Heat pump",
-  none: "None",
-  transport: "Transport",
-  diet: "Diet",
-  home_heating: "Home heating",
-  electricity: "Electricity",
-  flights: "Flights",
-  waste: "Waste",
+  petrol_car: "Petrol car", diesel_car: "Diesel car", electric_car: "Electric car",
+  motorbike: "Motorbike", bus: "Bus", train: "Train", bicycle: "Bicycle", walk: "Walking",
+  meat_heavy: "Meat with most meals", average: "Average / mixed", low_meat: "Low meat",
+  vegetarian: "Vegetarian", vegan: "Vegan",
+  natural_gas: "Natural gas", oil: "Oil", electric: "Electric", heat_pump: "Heat pump", none: "None",
+  transport: "Transport", diet: "Diet", home_heating: "Home heating",
+  electricity: "Electricity", flights: "Flights", waste: "Waste",
 };
-
 const label = (value) => LABELS[value] || value;
 
 let chart = null;
+let lastFootprint = null; // shared with the chat for grounded answers
 
-/** Replace a <select>'s contents with the given option values. */
+/* ---------------- Calculator ---------------- */
+
 function fillSelect(select, values, selected) {
   select.replaceChildren();
   for (const value of values) {
@@ -61,7 +47,6 @@ function fillSelect(select, values, selected) {
   }
 }
 
-/** Load valid choices from the API and populate the dropdowns. */
 async function loadOptions() {
   const res = await fetch(API.options);
   if (!res.ok) throw new Error("Could not load options.");
@@ -71,7 +56,6 @@ async function loadOptions() {
   fillSelect(document.getElementById("heating"), data.heating_types, "natural_gas");
 }
 
-/** Read the form into a plain object with correctly typed values. */
 function readForm(form) {
   const get = (name) => form.elements[name];
   return {
@@ -86,26 +70,20 @@ function readForm(form) {
   };
 }
 
-/** Draw (or redraw) the breakdown bar chart. */
 function renderChart(breakdown) {
   const entries = Object.entries(breakdown).filter(([, kg]) => kg > 0);
-  const labels = entries.map(([key]) => label(key));
-  const values = entries.map(([, kg]) => kg);
-
   const ctx = document.getElementById("breakdown-chart").getContext("2d");
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels,
-      datasets: [
-        {
-          label: "kg CO₂e / year",
-          data: values,
-          backgroundColor: "#22c55e",
-          borderRadius: 6,
-        },
-      ],
+      labels: entries.map(([k]) => label(k)),
+      datasets: [{
+        label: "kg CO₂e / year",
+        data: entries.map(([, kg]) => kg),
+        backgroundColor: "#1eb872",
+        borderRadius: 6,
+      }],
     },
     options: {
       responsive: true,
@@ -115,7 +93,6 @@ function renderChart(breakdown) {
   });
 }
 
-/** Fill the screen-reader table that mirrors the chart. */
 function renderTable(breakdown) {
   const tbody = document.querySelector("#breakdown-table tbody");
   tbody.replaceChildren();
@@ -130,7 +107,6 @@ function renderTable(breakdown) {
   }
 }
 
-/** Render the prioritised recommendation list. */
 function renderRecommendations(recs) {
   const list = document.getElementById("recommendations");
   list.replaceChildren();
@@ -152,31 +128,61 @@ function renderRecommendations(recs) {
   }
 }
 
-/** Render the headline summary (rating, total, comparison). */
+const YT_ICON =
+  '<svg class="yt-icon" viewBox="0 0 28 20" aria-hidden="true">' +
+  '<rect width="28" height="20" rx="5" fill="#FF0000"/>' +
+  '<path d="M11 6l7 4-7 4z" fill="#fff"/></svg>';
+
+function topCategory(breakdown) {
+  return Object.entries(breakdown).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+}
+
+async function renderResources(breakdown) {
+  const list = document.getElementById("resources");
+  list.replaceChildren();
+  const category = topCategory(breakdown);
+  try {
+    const res = await fetch(`${API.resources}?category=${encodeURIComponent(category)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    for (const item of data[category] || []) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = item.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.innerHTML = YT_ICON; // static, trusted markup only
+      const span = document.createElement("span");
+      span.textContent = item.title;
+      a.append(span);
+      li.append(a);
+      list.append(li);
+    }
+  } catch { /* resources are non-critical */ }
+}
+
 function renderSummary(data) {
+  const badge = document.getElementById("rating-badge");
   document.getElementById("rating-letter").textContent = data.rating;
+  badge.setAttribute("data-rating", data.rating);
   document.getElementById("total-tonnes").textContent = data.total_annual_tonnes;
   const vsAvg = Math.round(data.vs_global_average_pct);
-  const comparison = document.getElementById("comparison");
-  comparison.textContent =
+  document.getElementById("comparison").textContent =
     vsAvg <= 100
       ? `That's ${100 - vsAvg}% below the global average. 🎉`
       : `That's ${vsAvg - 100}% above the global average — there's room to improve.`;
 }
 
-/** Show a status message; mark it as an error when appropriate. */
 function setStatus(message, isError = false) {
   const status = document.getElementById("status");
   status.textContent = message;
   status.classList.toggle("error", isError);
 }
 
-/** Handle form submission end-to-end. */
 async function onSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const button = form.querySelector("button[type=submit]");
-
   button.disabled = true;
   setStatus("Crunching the numbers…");
 
@@ -189,14 +195,15 @@ async function onSubmit(event) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Something went wrong.");
 
+    lastFootprint = data;
     renderSummary(data);
     renderChart(data.breakdown);
     renderTable(data.breakdown);
     renderRecommendations(data.recommendations);
+    await renderResources(data.breakdown);
 
     document.getElementById("results-body").hidden = false;
     setStatus("Done — here is your personalised plan.");
-    // Move focus to the results so screen-reader users land on the output.
     document.getElementById("results-heading").focus();
   } catch (err) {
     setStatus(err.message, true);
@@ -205,13 +212,140 @@ async function onSubmit(event) {
   }
 }
 
-/** Wire everything up once the DOM is ready. */
+/* ---------------- AI chat ---------------- */
+
+const chat = {
+  history: [], // {role, content} pairs sent to the API
+};
+
+function addMessage(role, text) {
+  const log = document.getElementById("chat-log");
+  const div = document.createElement("div");
+  div.className = `msg ${role === "user" ? "user" : "bot"}`;
+  div.textContent = text;
+  log.append(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+/** Stream a reply from the server, updating one bot bubble as chunks arrive. */
+async function streamChat(bubble) {
+  const sendBtn = document.getElementById("chat-send");
+  sendBtn.disabled = true;
+  bubble.classList.add("typing");
+
+  let full = "";
+  try {
+    const res = await fetch(API.chat, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chat.history, footprint: lastFootprint }),
+    });
+    if (!res.ok || !res.body) throw new Error("chat failed");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    // Parse the SSE stream incrementally: events are separated by "\n\n".
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop(); // keep the trailing partial event
+      for (const evt of events) {
+        const line = evt.split("\n").find((l) => l.startsWith("data:"));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice(5).trim());
+        if (payload.text) {
+          full += payload.text;
+          bubble.textContent = full;
+          document.getElementById("chat-log").scrollTop = 1e9;
+        } else if (payload.error) {
+          full = payload.error;
+          bubble.textContent = full;
+        }
+      }
+    }
+  } catch {
+    full = "Sorry — I couldn't reach the assistant. Please try again.";
+    bubble.textContent = full;
+  } finally {
+    bubble.classList.remove("typing");
+    sendBtn.disabled = false;
+  }
+
+  chat.history.push({ role: "assistant", content: full });
+}
+
+function sendChat(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  addMessage("user", trimmed);
+  chat.history.push({ role: "user", content: trimmed });
+  const bubble = addMessage("bot", "");
+  streamChat(bubble);
+}
+
+function openChat() {
+  const panel = document.getElementById("chat-panel");
+  panel.hidden = false;
+  document.getElementById("chat-toggle").setAttribute("aria-expanded", "true");
+  if (chat.history.length === 0) {
+    addMessage("bot", "Hi! I'm Terra 🌱 Ask me anything about cutting your carbon footprint — or calculate yours and I'll tailor my advice.");
+  }
+  document.getElementById("chat-input").focus();
+}
+
+function closeChat() {
+  document.getElementById("chat-panel").hidden = true;
+  const toggle = document.getElementById("chat-toggle");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.focus();
+}
+
+async function showAiStatus() {
+  try {
+    const res = await fetch(API.status);
+    const { ai_enabled } = await res.json();
+    const badge = document.getElementById("ai-badge");
+    const text = document.getElementById("ai-badge-text");
+    const dot = badge.querySelector(".ai-dot");
+    text.textContent = ai_enabled ? "AI assistant online" : "AI assistant (offline mode)";
+    if (!ai_enabled) dot.classList.add("is-offline");
+    badge.hidden = false;
+  } catch { /* badge is optional */ }
+}
+
+/* ---------------- Wire-up ---------------- */
+
 function init() {
   document.getElementById("results-heading").setAttribute("tabindex", "-1");
   document.getElementById("footprint-form").addEventListener("submit", onSubmit);
+
+  document.getElementById("chat-toggle").addEventListener("click", openChat);
+  document.getElementById("chat-close").addEventListener("click", closeChat);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !document.getElementById("chat-panel").hidden) closeChat();
+  });
+
+  document.getElementById("chat-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("chat-input");
+    sendChat(input.value);
+    input.value = "";
+  });
+
+  document.getElementById("chat-suggestions").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (chip) sendChat(chip.dataset.q);
+  });
+
   loadOptions().catch(() =>
     setStatus("Could not reach the server. Is the backend running?", true)
   );
+  showAiStatus();
 }
 
 document.addEventListener("DOMContentLoaded", init);

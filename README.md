@@ -1,9 +1,12 @@
-# 🌱 GreenCityAI — Carbon Footprint Awareness Assistant
+# 🌱 GreenCityAI — AI Carbon Footprint Assistant
 
 A smart, dynamic assistant that turns a person's everyday lifestyle choices into
-a personalised carbon-footprint estimate and a **prioritised action plan** for
-reducing it. Built with a Python (Flask) backend and a vanilla JavaScript
-dashboard.
+a personalised carbon-footprint estimate, a **prioritised action plan**, curated
+learning videos, and a **conversational AI chatbot** ("Terra") that answers
+sustainability questions — grounded in *that user's* own footprint.
+
+Built with a Python (Flask) backend, a vanilla-JavaScript dashboard, and the
+**Claude API** (Claude Opus 4.8) for the chat experience.
 
 > **Chosen vertical:** Sustainability / Carbon Footprint Awareness for citizens
 > of a "green city".
@@ -12,41 +15,65 @@ dashboard.
 
 ## Why this project
 
-Most carbon calculators give you a number and stop. People are then left
-wondering *"okay… but what should **I** actually do?"* GreenCityAI closes that
-gap: it reasons about the user's specific context and tells them the **few
-highest-impact changes** for *their* life — and quantifies the saving of each.
+Most carbon calculators give you a number and stop. People are left wondering
+*"okay… but what should **I** actually do?"* GreenCityAI closes that gap on three
+levels:
+
+1. **Quantify** — estimate annual CO₂e, broken down by category.
+2. **Advise** — generate the few highest-impact actions for *their* life, each
+   with an estimated saving, sorted biggest-win-first.
+3. **Converse** — let the user ask follow-up questions to an AI assistant that
+   already knows their footprint and tailors every answer to it, and surface
+   curated YouTube videos for their biggest emission source.
 
 ---
 
-## What it does
+## Key features
 
-1. The user describes their lifestyle: transport, home heating, electricity use,
-   diet, flights, household size, and recycling habits.
-2. The backend estimates their **annual CO₂e** broken down by category.
-3. A rule-based decision engine generates **context-aware recommendations**,
-   sorted by estimated impact (biggest win first). It never suggests something
-   that doesn't apply — e.g. a cyclist is never told to "drive less".
-4. The dashboard shows an A–E rating, a comparison to the global average and the
-   Paris-aligned target, a breakdown chart, and the personalised action plan.
+- 📊 **Footprint calculator** — transport, home energy, diet, flights, waste →
+  annual CO₂e with an A–E rating and comparison to the global average and the
+  Paris-aligned target.
+- 🧠 **Context-aware action plan** — rule-based decision engine that only
+  suggests changes that apply to the user (a cyclist is never told to drive
+  less) and ranks them by impact.
+- 💬 **Terra, the AI chatbot** — a streaming Claude-powered assistant. Ask "how
+  do I fly less?" and get a direct, personalised answer that references your own
+  biggest emission sources.
+- 📺 **Curated learning resources** — reliable YouTube search links for the
+  user's top emission category.
+- ♿ **Accessible & responsive** — keyboard friendly, screen-reader support,
+  high-contrast, reduced-motion aware.
+
+### Graceful degradation
+
+The chatbot works **with or without** an API key:
+
+| Mode | When | Behaviour |
+| --- | --- | --- |
+| **Live** | `ANTHROPIC_API_KEY` is set | Streams real answers from Claude Opus 4.8, grounded in the user's footprint. |
+| **Fallback** | No key configured | A built-in keyword responder gives useful, deterministic advice — so the app (and CI) runs fully offline. |
+
+The header badge shows which mode is active.
 
 ---
 
 ## Approach & logic
 
-The "smart" behaviour is intentionally **transparent and explainable** rather
-than a black box:
+The "smart" behaviour is intentionally **transparent and explainable**:
 
-- **Emission factors as data.** All factors (kg CO₂e) live in plain
-  dictionaries in [`backend/carbon_engine.py`](backend/carbon_engine.py), sourced
-  from public DEFRA / EPA / IPCC averages, so they are easy to audit and localise.
-- **Decision making based on user context.** `recommend()` inspects the user's
-  inputs and their emission breakdown, then emits only the suggestions that
-  genuinely apply, each with an estimated annual saving. Results are sorted by
-  impact — that prioritisation is what makes the assistant feel intelligent.
-- **Separation of concerns.** The engine has zero web dependencies, so it can be
-  unit-tested in isolation and reused from any context. Flask is a thin,
-  validate-and-serialise layer on top.
+- **Emission factors as data.** All factors (kg CO₂e) live in plain dictionaries
+  in [`backend/carbon_engine.py`](backend/carbon_engine.py), sourced from public
+  DEFRA / EPA / IPCC averages — easy to audit and localise.
+- **Decision-making on user context.** `recommend()` inspects the user's inputs
+  and their emission breakdown, emits only the suggestions that genuinely apply,
+  and sorts by impact. That prioritisation is what makes the assistant feel
+  intelligent.
+- **The AI is grounded, not generic.** The chat endpoint passes the user's
+  computed footprint into the model's system prompt, so Terra's advice is
+  specific to them.
+- **Separation of concerns.** The carbon engine and AI wrapper have zero web
+  dependencies, so they're unit-tested in isolation. Flask is a thin
+  validate-and-serialise layer.
 
 ---
 
@@ -55,26 +82,31 @@ than a black box:
 ```
 GreenCityAI/
 ├── backend/
-│   ├── carbon_engine.py   # Pure logic: validation, estimation, recommendations
-│   └── app.py             # Flask REST API + static file server
+│   ├── carbon_engine.py     # Pure logic: validation, estimation, recommendations
+│   ├── ai_assistant.py      # Claude (Opus 4.8) chat wrapper + offline fallback
+│   ├── youtube_resources.py # Curated, hallucination-proof learning links
+│   └── app.py               # Flask REST API + SSE chat + static server
 ├── frontend/
-│   ├── index.html         # Accessible, semantic markup
-│   ├── css/styles.css     # WCAG-AA contrast, focus states, responsive
-│   └── js/app.js          # Fetches API, renders chart + action plan (no inline JS)
+│   ├── index.html           # Accessible, semantic markup
+│   ├── css/styles.css        # Distinctive design, WCAG-AA, responsive
+│   └── js/app.js            # Calculator, resources, streaming chat (no inline JS)
 ├── tests/
-│   └── test_carbon_engine.py  # Engine + API tests (pytest)
+│   └── test_carbon_engine.py  # 35 tests: engine, AI fallback, API contract
 ├── requirements.txt
-├── LICENSE
-└── README.md
+├── .env.example             # Copy to .env and add your API key
+├── LICENSE · README.md
 ```
 
 **API**
 
-| Method | Route           | Purpose                                   |
-| ------ | --------------- | ----------------------------------------- |
-| GET    | `/api/options`  | Valid dropdown choices (single source)    |
-| POST   | `/api/analyse`  | Validate context → footprint + advice     |
-| GET    | `/health`       | Liveness probe                            |
+| Method | Route            | Purpose                                              |
+| ------ | ---------------- | ---------------------------------------------------- |
+| GET    | `/api/options`   | Valid dropdown choices (single source of truth)      |
+| POST   | `/api/analyse`   | Validate context → footprint + prioritised advice    |
+| GET    | `/api/resources` | Curated YouTube links (optionally per category)      |
+| POST   | `/api/chat`      | **Streaming** AI reply (Server-Sent Events)          |
+| GET    | `/api/status`    | Whether live AI is configured (vs fallback)          |
+| GET    | `/health`        | Liveness probe                                       |
 
 ---
 
@@ -84,17 +116,24 @@ GreenCityAI/
 # 1. Install dependencies (a virtual environment is recommended)
 pip install -r requirements.txt
 
-# 2. Start the server
+# 2. (Optional) enable the live AI chatbot
+cp .env.example .env          # then paste your key into ANTHROPIC_API_KEY
+#   Get a key at https://console.anthropic.com/
+#   Skip this step to run in offline fallback mode — the app still works.
+
+# 3. Start the server
 python backend/app.py
 
-# 3. Open the dashboard
+# 4. Open the dashboard
 #    http://127.0.0.1:5000
 ```
+
+On Windows PowerShell, step 3 is the same: `python backend\app.py`.
 
 ## Run the tests
 
 ```bash
-pytest -q
+pytest -q          # 35 tests, no network or API key required
 ```
 
 ---
@@ -102,18 +141,26 @@ pytest -q
 ## How each evaluation area is addressed
 
 - **Code Quality** — small, single-responsibility modules; type hints,
-  docstrings, and meaningful comments; logic decoupled from the web framework.
-- **Security** — strict input validation with bounds, key whitelisting, request
-  size limit, security headers (CSP, `X-Frame-Options`, `nosniff`), no
-  `eval`/`exec`, debug off by default, pinned dependencies, and an XSS-safe
-  frontend that uses `textContent` (never raw HTML injection).
-- **Efficiency** — O(1) arithmetic with no external API calls or database; the
-  engine is pure and instantaneous.
-- **Testing** — `pytest` suite covering validation, the footprint maths, the
-  recommendation prioritisation, and the HTTP contract.
-- **Accessibility** — semantic landmarks, a skip link, labelled controls,
-  visible focus states, a screen-reader table mirroring the chart, live status
-  regions, focus management, and `prefers-reduced-motion` support.
+  docstrings, meaningful comments; logic decoupled from Flask and from the LLM
+  SDK; the AI layer exposes one clean generator used identically in both modes.
+- **Security** — API key read from the environment and **never committed**
+  (`.env` is gitignored); strict input validation with bounds; request-key
+  whitelisting; request-size cap; chat history length/size limits; security
+  headers (CSP, `X-Frame-Options`, `nosniff`); errors never leak internals;
+  prompt-injection note in the system prompt; XSS-safe frontend that uses
+  `textContent` and `rel="noopener noreferrer"` on external links; debug off by
+  default; pinned dependencies.
+- **Efficiency** — the footprint engine is pure O(1) arithmetic with no DB or
+  network; chat responses are **streamed** (SSE) so the UI shows tokens as they
+  arrive instead of blocking; YouTube links are computed, not fetched.
+- **Testing** — 35 `pytest` cases covering validation, the footprint maths, the
+  recommendation prioritisation, the resource builder, the AI fallback
+  responder, and the full HTTP contract (including the SSE stream) — all
+  runnable offline.
+- **Accessibility** — semantic landmarks, skip link, labelled controls, visible
+  focus, a screen-reader table mirroring the chart, live regions for results and
+  chat, `aria-expanded`/`aria-controls` on the chat toggle, Escape-to-close,
+  focus management, and `prefers-reduced-motion` support.
 
 ---
 
@@ -124,8 +171,10 @@ pytest -q
 - Household-shared sources (heating, electricity) are divided evenly across
   occupants.
 - "Flights per year" is modelled as short-haul return trips (~500 kg CO₂e each).
-- The app is stateless — no personal data is stored, which keeps it private by
-  design.
+- The app is **stateless** — no personal data is stored, which keeps it private
+  by design. Chat history lives only in the browser tab for the session.
+- Learning resources are **YouTube search links** (not fixed video IDs) so they
+  never break and always surface fresh content.
 
 ---
 

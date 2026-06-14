@@ -4,87 +4,81 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-        content="GreenCityAI — estimate your carbon footprint and get personalised, prioritised advice to reduce it." />
-  <title>GreenCityAI · Carbon Footprint Assistant</title>
+        content="GreenCityAI — an AI assistant that estimates your carbon footprint, gives a personalised action plan, and answers your sustainability questions." />
+  <title>GreenCityAI · AI Carbon Footprint Assistant</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <!-- Skip link for keyboard and screen-reader users. -->
   <a class="skip-link" href="#main">Skip to main content</a>
 
   <header class="site-header">
-    <div class="brand">
-      <span class="brand__leaf" aria-hidden="true">🌱</span>
-      <h1>GreenCity<span class="brand__accent">AI</span></h1>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand__leaf" aria-hidden="true">🌱</span>
+        <div>
+          <h1>GreenCity<span class="brand__accent">AI</span></h1>
+          <p class="tagline">Estimate it · Understand it · Shrink it</p>
+        </div>
+      </div>
+      <p class="ai-badge" id="ai-badge" hidden>
+        <span class="ai-dot" aria-hidden="true"></span><span id="ai-badge-text"></span>
+      </p>
     </div>
-    <p class="tagline">Your personal carbon footprint assistant</p>
   </header>
 
   <main id="main" class="layout">
-    <!-- ---------------- Input form ---------------- -->
+    <!-- ============== LEFT: input form ============== -->
     <section class="card" aria-labelledby="form-heading">
-      <h2 id="form-heading">Tell us about your lifestyle</h2>
+      <h2 id="form-heading">Your lifestyle</h2>
+      <p class="card-sub">Tell us a little about your daily life to estimate your footprint.</p>
       <form id="footprint-form" novalidate>
         <fieldset>
           <legend>Transport</legend>
-
           <label for="transport_mode">Main mode of transport</label>
           <select id="transport_mode" name="transport_mode"></select>
-
           <label for="daily_commute_km">Daily travel distance (km)</label>
           <input type="number" id="daily_commute_km" name="daily_commute_km"
-                 min="0" max="1000" step="0.5" value="20"
-                 inputmode="decimal" required />
+                 min="0" max="1000" step="0.5" value="20" inputmode="decimal" required />
         </fieldset>
 
         <fieldset>
           <legend>Home</legend>
-
           <label for="heating">Home heating</label>
           <select id="heating" name="heating"></select>
-
           <label for="monthly_electricity_kwh">Monthly electricity use (kWh)</label>
           <input type="number" id="monthly_electricity_kwh" name="monthly_electricity_kwh"
-                 min="0" max="10000" step="1" value="250"
-                 inputmode="numeric" required />
-
+                 min="0" max="10000" step="1" value="250" inputmode="numeric" required />
           <label for="household_size">People in household</label>
           <input type="number" id="household_size" name="household_size"
-                 min="1" max="20" step="1" value="2"
-                 inputmode="numeric" required />
+                 min="1" max="20" step="1" value="2" inputmode="numeric" required />
         </fieldset>
 
         <fieldset>
           <legend>Lifestyle</legend>
-
           <label for="diet">Diet</label>
           <select id="diet" name="diet"></select>
-
           <label for="flights_per_year">Flights per year</label>
           <input type="number" id="flights_per_year" name="flights_per_year"
-                 min="0" max="100" step="1" value="2"
-                 inputmode="numeric" required />
-
+                 min="0" max="100" step="1" value="2" inputmode="numeric" required />
           <div class="checkbox-row">
             <input type="checkbox" id="recycles" name="recycles" checked />
             <label for="recycles">I recycle and compost regularly</label>
           </div>
         </fieldset>
 
-        <button type="submit" class="btn-primary">Calculate my footprint</button>
+        <button type="submit" class="btn-primary">⚡ Calculate my footprint</button>
       </form>
     </section>
 
-    <!-- ---------------- Results ---------------- -->
+    <!-- ============== RIGHT: results ============== -->
     <section class="card results" aria-labelledby="results-heading" aria-live="polite">
       <h2 id="results-heading">Your results</h2>
-
-      <!-- Status region keeps screen readers informed of async state. -->
       <p id="status" class="status" role="status"></p>
 
       <div id="results-body" hidden>
         <div class="summary">
-          <div class="rating" aria-hidden="true"><span id="rating-letter">–</span></div>
+          <div class="rating" id="rating-badge" aria-hidden="true"><span id="rating-letter">–</span></div>
           <div class="summary__numbers">
             <p class="big-number">
               <span id="total-tonnes">0</span><span class="unit"> t CO₂e / yr</span>
@@ -96,7 +90,6 @@
         <h3>Where your emissions come from</h3>
         <canvas id="breakdown-chart" width="400" height="220"
                 role="img" aria-label="Bar chart of emissions by category"></canvas>
-        <!-- Accessible text equivalent of the chart. -->
         <table id="breakdown-table" class="visually-hidden-focusable">
           <caption>Annual emissions by category (kg CO₂e)</caption>
           <thead><tr><th>Category</th><th>kg CO₂e per year</th></tr></thead>
@@ -105,17 +98,49 @@
 
         <h3>Your personalised action plan</h3>
         <ol id="recommendations" class="recommendations"></ol>
+
+        <h3>📺 Learn more</h3>
+        <p class="card-sub">Curated videos for your highest-impact area.</p>
+        <ul id="resources" class="resources" aria-label="Recommended learning videos"></ul>
       </div>
     </section>
   </main>
 
+  <!-- ============== AI CHAT (floating) ============== -->
+  <button id="chat-toggle" class="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
+    <span aria-hidden="true">💬</span>
+    <span class="chat-toggle__label">Ask Terra</span>
+  </button>
+
+  <section id="chat-panel" class="chat-panel" aria-labelledby="chat-title" hidden>
+    <header class="chat-header">
+      <div>
+        <h2 id="chat-title">Terra <span class="chat-sub">· your green assistant</span></h2>
+      </div>
+      <button id="chat-close" class="chat-close" aria-label="Close chat">✕</button>
+    </header>
+
+    <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-label="Conversation with Terra"></div>
+
+    <div class="chat-suggestions" id="chat-suggestions" aria-label="Suggested questions">
+      <button type="button" class="chip" data-q="How can I lower my transport emissions?">Lower transport emissions</button>
+      <button type="button" class="chip" data-q="What are easy ways to save energy at home?">Save energy at home</button>
+      <button type="button" class="chip" data-q="How does diet affect my carbon footprint?">Diet &amp; footprint</button>
+    </div>
+
+    <form id="chat-form" class="chat-form">
+      <label for="chat-input" class="visually-hidden-focusable">Your message</label>
+      <input id="chat-input" name="chat-input" type="text" autocomplete="off"
+             placeholder="Ask about reducing your footprint…" maxlength="2000" />
+      <button type="submit" class="chat-send" id="chat-send" aria-label="Send message">➤</button>
+    </form>
+  </section>
+
   <footer class="site-footer">
-    <p>Built for a greener city · Estimates use public DEFRA / EPA / IPCC averages.</p>
+    <p>Built for a greener city · Estimates use public DEFRA / EPA / IPCC averages · AI by Claude.</p>
   </footer>
 
-  <!-- Chart.js is pinned to an exact version for reproducible, secure builds. -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
-          defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
 </html>

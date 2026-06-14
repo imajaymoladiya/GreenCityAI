@@ -11,11 +11,14 @@ Then open http://127.0.0.1:5000 in a browser.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
+import ai_assistant
+import youtube_resources
 from carbon_engine import (
     DIET_FACTORS,
     HEATING_FACTORS,
@@ -25,13 +28,36 @@ from carbon_engine import (
     analyse,
 )
 
+def _load_dotenv() -> None:
+    """Load KEY=VALUE pairs from a project-root .env into the environment.
+
+    A tiny, dependency-free loader so users can drop their API key in a file.
+    Existing environment variables always take precedence and are never
+    overwritten.
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
+
 # Serve the frontend straight from the sibling ``frontend`` directory.
 FRONTEND_DIR = (Path(__file__).resolve().parent.parent / "frontend").resolve()
 
 app = Flask(__name__, static_folder=None)
 
 # Reject oversized bodies early — a cheap defence against memory-exhaustion.
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024  # 16 KB is ample for this payload.
+# 64 KB comfortably covers a full chat history plus footprint context.
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
 
 @app.after_request
@@ -90,6 +116,55 @@ def analyse_endpoint():
         return jsonify({"error": f"Invalid input: {exc}"}), 400
 
     return jsonify(analyse(ctx).to_dict())
+
+
+@app.get("/api/resources")
+def resources():
+    """Return curated YouTube learning resources, optionally for one category."""
+    category = request.args.get("category")
+    if category:
+        return jsonify({category: youtube_resources.resources_for(category)})
+    return jsonify(youtube_resources.all_resources())
+
+
+@app.post("/api/chat")
+def chat():
+    """Stream a reply from the AI assistant via Server-Sent Events.
+
+    Body: ``{"messages": [{"role": "user"|"assistant", "content": str}, ...],
+    "footprint": <optional analysis dict>}``. The response is a text/event-stream
+    of ``{"text": "..."}`` chunks, terminated by ``{"done": true}``.
+    """
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Request body must be a JSON object."}), 400
+
+    messages = payload.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return jsonify({"error": "'messages' must be a non-empty list."}), 400
+
+    footprint = payload.get("footprint")
+    footprint = footprint if isinstance(footprint, dict) else None
+
+    def event_stream():
+        try:
+            for chunk in ai_assistant.stream_reply(messages, footprint):
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+        except Exception:  # never leak internals to the client
+            yield f"data: {json.dumps({'error': 'The assistant is unavailable.'})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    return Response(
+        event_stream(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/status")
+def status():
+    """Report whether the live AI service is configured (vs fallback mode)."""
+    return jsonify({"ai_enabled": ai_assistant.is_available()})
 
 
 @app.get("/health")

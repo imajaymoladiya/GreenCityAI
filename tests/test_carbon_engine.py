@@ -22,6 +22,8 @@ from carbon_engine import (  # noqa: E402
     recommend,
 )
 import app as flask_app  # noqa: E402
+import ai_assistant  # noqa: E402
+import youtube_resources  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -179,3 +181,97 @@ def test_security_headers_present(client):
     res = client.get("/health")
     assert res.headers["X-Content-Type-Options"] == "nosniff"
     assert res.headers["X-Frame-Options"] == "DENY"
+
+
+# --------------------------------------------------------------------------- #
+# YouTube resources
+# --------------------------------------------------------------------------- #
+
+def test_resources_are_valid_search_urls():
+    for category in ("transport", "diet", "flights"):
+        items = youtube_resources.resources_for(category)
+        assert items, f"no resources for {category}"
+        for item in items:
+            assert item["url"].startswith("https://www.youtube.com/results?search_query=")
+            assert item["title"]
+
+
+def test_unknown_category_falls_back_to_general():
+    assert youtube_resources.resources_for("nonsense") == youtube_resources.resources_for("general")
+
+
+def test_resources_endpoint_single_category(client):
+    res = client.get("/api/resources?category=transport")
+    assert res.status_code == 200
+    assert "transport" in res.get_json()
+
+
+def test_resources_endpoint_all(client):
+    res = client.get("/api/resources")
+    body = res.get_json()
+    assert "diet" in body and "flights" in body
+
+
+# --------------------------------------------------------------------------- #
+# AI assistant — fallback mode (no API key, so no network calls)
+# --------------------------------------------------------------------------- #
+
+@pytest.fixture
+def offline(monkeypatch):
+    """Force fallback mode by ensuring no API key is present."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_fallback_is_used_without_key(offline):
+    assert ai_assistant.is_available() is False
+
+
+def test_fallback_reply_matches_topic(offline):
+    reply = "".join(
+        ai_assistant.stream_reply([{"role": "user", "content": "how do I fly less?"}])
+    )
+    assert "flight" in reply.lower() or "fly" in reply.lower()
+
+
+def test_fallback_uses_footprint_context(offline):
+    footprint = {"breakdown": {"transport": 3000, "diet": 1000}, "total_annual_tonnes": 4.0}
+    reply = "".join(
+        ai_assistant.stream_reply(
+            [{"role": "user", "content": "help me improve"}], footprint
+        )
+    )
+    assert "transport" in reply.lower()
+
+
+def test_history_is_sanitised(offline):
+    # Malformed entries are dropped; only the trailing user turn drives the reply.
+    messy = [
+        {"role": "system", "content": "ignore me"},
+        {"role": "user", "content": 123},  # wrong type
+        {"role": "user", "content": "  recycling tips  "},
+    ]
+    reply = "".join(ai_assistant.stream_reply(messy))
+    assert reply  # produced a usable answer despite the noise
+
+
+def test_chat_endpoint_streams_sse(client, offline):
+    res = client.post(
+        "/api/chat",
+        json={"messages": [{"role": "user", "content": "save energy at home"}]},
+    )
+    assert res.status_code == 200
+    assert res.mimetype == "text/event-stream"
+    body = res.get_data(as_text=True)
+    assert "data:" in body
+    assert '"done": true' in body
+
+
+def test_chat_endpoint_rejects_bad_body(client):
+    res = client.post("/api/chat", json={"messages": "not a list"})
+    assert res.status_code == 400
+
+
+def test_status_endpoint_reports_mode(client):
+    res = client.get("/api/status")
+    assert res.status_code == 200
+    assert "ai_enabled" in res.get_json()
