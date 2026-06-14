@@ -1,0 +1,12 @@
+# Keep the serverless bundle small — exclude dev-only and local files.
+.env
+.env.*
+tests/
+.pytest_cache/
+__pycache__/
+*.pyc
+myenv/
+.venv/
+venv/
+.claude/
+.git/

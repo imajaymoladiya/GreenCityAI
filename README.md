@@ -177,6 +177,29 @@ pytest -q          # 46 tests, no network or API key required
 
 ---
 
+## Deploy to Vercel
+
+The repo is Vercel-ready: [`api/index.py`](api/index.py) exposes the Flask app
+as a serverless function and [`vercel.json`](vercel.json) routes every request
+(static files + `/api/*`) to it.
+
+1. Push the repo to GitHub (already done).
+2. In the [Vercel dashboard](https://vercel.com/new), **Add New → Project** and
+   import the `GreenCityAI` repository. Framework preset: **Other** (leave the
+   build/output settings empty — `vercel.json` handles everything).
+3. Under **Environment Variables**, add `GROQ_API_KEY` with your key (and
+   optionally `ANTHROPIC_API_KEY`). **Do not** commit keys — Vercel injects them
+   at runtime.
+4. Click **Deploy**. Your platform is live at `https://<project>.vercel.app`.
+
+> **Notes for the serverless model:** the AI chat still works but responses are
+> buffered (delivered as one chunk) rather than token-by-token, since Vercel
+> functions buffer WSGI output; and the in-memory rate limiter is per-instance.
+> For native streaming and a long-lived process, a platform like **Render** or
+> **Railway** runs `python backend/app.py` (or `waitress-serve`) unchanged.
+
+---
+
 ## How each evaluation area is addressed
 
 - **Code Quality** — small, single-responsibility modules (`carbon_engine`,
