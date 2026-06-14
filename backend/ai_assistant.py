@@ -129,6 +129,10 @@ def _stream_from_groq(system: str, history: List[Dict[str, str]]) -> Iterator[st
             stream=True,
         )
         for chunk in stream:
+            # Groq's final usage-only chunk has an empty `choices` list — guard
+            # it so it doesn't raise an IndexError mid-stream.
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta.content
             if delta:
                 yield delta

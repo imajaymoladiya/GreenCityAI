@@ -202,6 +202,7 @@ async function onSubmit(event) {
     renderRecommendations(data.recommendations);
     await renderResources(data.breakdown);
 
+    document.getElementById("results-empty").hidden = true;
     document.getElementById("results-body").hidden = false;
     setStatus("Done — here is your personalised plan.");
     document.getElementById("results-heading").focus();
@@ -262,7 +263,9 @@ async function streamChat(bubble) {
           full += payload.text;
           bubble.textContent = full;
           document.getElementById("chat-log").scrollTop = 1e9;
-        } else if (payload.error) {
+        } else if (payload.error && !full) {
+          // Only show the error if nothing has streamed yet — never wipe a
+          // reply that already arrived.
           full = payload.error;
           bubble.textContent = full;
         }
