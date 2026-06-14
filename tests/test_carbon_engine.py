@@ -258,6 +258,13 @@ def test_fallback_uses_footprint_context(offline):
     assert "transport" in reply.lower()
 
 
+def test_system_prompt_requests_same_language_reply():
+    # The live providers are instructed to mirror the user's language.
+    prompt = ai_assistant.SYSTEM_PROMPT.lower()
+    assert "same language" in prompt
+    assert "marathi" in prompt
+
+
 def test_history_is_sanitised(offline):
     # Malformed entries are dropped; only the trailing user turn drives the reply.
     messy = [
