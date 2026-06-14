@@ -18,6 +18,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 import ai_assistant
+import city_data
 import youtube_resources
 from carbon_engine import (
     DIET_FACTORS,
@@ -69,10 +70,51 @@ def set_security_headers(response):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:"
     )
     return response
+
+
+# Per-category presentation metadata for turning engine recommendations into
+# user-facing "AI recommendation" cards.
+_DIFFICULTY = {
+    "transport": ("Medium", 600), "diet": ("Easy", 0),
+    "home_heating": ("Hard", 800), "electricity": ("Easy", 300),
+    "flights": ("Medium", 0), "waste": ("Easy", 0),
+}
+
+# A 12-tonne/year lifestyle maps to a carbon score of 100 (lower is greener).
+_SCORE_BASELINE_TONNES = 12.0
+
+
+def _carbon_score(total_tonnes: float) -> int:
+    """Map an annual footprint (tonnes) to a 0-100 score; lower is greener."""
+    return round(max(0, min(100, total_tonnes / _SCORE_BASELINE_TONNES * 100)))
+
+
+def _recommendation_cards(recommendations: list) -> list:
+    """Enrich engine recommendations with difficulty and financial savings."""
+    cards = []
+    for rec in recommendations:
+        difficulty, inr = _DIFFICULTY.get(rec["category"], ("Medium", 0))
+        cards.append(
+            {
+                "title": rec["message"].split(" — ")[0].split(". ")[0],
+                "category": rec["category"],
+                "impact_kg_month": round(rec["estimated_saving_kg"] / 12),
+                "difficulty": difficulty,
+                "savings_inr_month": inr,
+            }
+        )
+    return cards
+
+
+@app.get("/api/bootstrap")
+def bootstrap():
+    """Everything the dashboard needs on first load (profile, city, insights)."""
+    return jsonify(city_data.bootstrap())
 
 
 @app.get("/api/options")
@@ -115,7 +157,10 @@ def analyse_endpoint():
         # Wrong value types for known keys, e.g. a list where a number is needed.
         return jsonify({"error": f"Invalid input: {exc}"}), 400
 
-    return jsonify(analyse(ctx).to_dict())
+    result = analyse(ctx).to_dict()
+    result["score"] = _carbon_score(result["total_annual_tonnes"])
+    result["recommendation_cards"] = _recommendation_cards(result["recommendations"])
+    return jsonify(result)
 
 
 @app.get("/api/resources")

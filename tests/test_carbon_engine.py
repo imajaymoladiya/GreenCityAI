@@ -23,6 +23,7 @@ from carbon_engine import (  # noqa: E402
 )
 import app as flask_app  # noqa: E402
 import ai_assistant  # noqa: E402
+import city_data  # noqa: E402
 import youtube_resources  # noqa: E402
 
 
@@ -291,3 +292,57 @@ def test_status_endpoint_reports_mode(client):
     body = res.get_json()
     assert "ai_enabled" in body
     assert body["provider"] in ("groq", "claude", "offline")
+
+
+# --------------------------------------------------------------------------- #
+# Smart-city data layer
+# --------------------------------------------------------------------------- #
+
+def test_level_resolves_and_progresses():
+    p = city_data.profile()
+    assert p["level"] == "Green Hero"
+    assert 0 < p["level_progress_pct"] <= 100
+
+
+def test_leaderboard_includes_current_user():
+    board = city_data.leaderboard()
+    you = [r for r in board if r["is_you"]]
+    assert len(you) == 1 and you[0]["rank"] == city_data.USER_RANK
+
+
+def test_heatmap_levels_are_bucketed():
+    levels = {a["level"] for a in city_data.areas()}
+    assert levels <= {"low", "moderate", "high"}
+    assert "low" in levels and "high" in levels
+
+
+def test_rewards_unlock_by_points():
+    rewards = city_data.rewards()
+    cheap = next(r for r in rewards if r["cost"] <= city_data.USER_POINTS)
+    pricey = next(r for r in rewards if r["cost"] > city_data.USER_POINTS)
+    assert cheap["unlocked"] is True
+    assert pricey["unlocked"] is False
+
+
+def test_forecast_detects_improving_trend():
+    f = city_data.forecast()  # demo trend is decreasing (improving)
+    assert f["direction"] == "down"
+    assert 0 <= f["predicted_score"] <= 100
+
+
+def test_bootstrap_endpoint_shape(client):
+    res = client.get("/api/bootstrap")
+    assert res.status_code == 200
+    body = res.get_json()
+    for key in ("profile", "rewards", "city", "insights", "cities"):
+        assert key in body
+    assert "leaderboard" in body["city"] and "areas" in body["city"]
+
+
+def test_analyse_includes_score_and_cards(client):
+    res = client.post("/api/analyse", json={"daily_commute_km": 25, "diet": "meat_heavy"})
+    body = res.get_json()
+    assert 0 <= body["score"] <= 100
+    assert body["recommendation_cards"]
+    card = body["recommendation_cards"][0]
+    assert {"title", "category", "impact_kg_month", "difficulty"} <= card.keys()

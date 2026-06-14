@@ -1,16 +1,43 @@
-# 🌱 GreenCityAI — AI Carbon Footprint Assistant
+# 🌱 GreenCityAI — Smart City Sustainability Platform
 
-A smart, dynamic assistant that turns a person's everyday lifestyle choices into
-a personalised carbon-footprint estimate, a **prioritised action plan**, curated
-learning videos, and a **conversational AI chatbot** ("Terra") that answers
-sustainability questions — grounded in *that user's* own footprint.
+A **Smart City Sustainability Intelligence Platform** — not a basic carbon
+calculator. GreenCityAI gives citizens a premium, data-rich dashboard to track
+their carbon footprint, receive **AI-powered recommendations**, earn **rewards**
+for sustainable behaviour, climb a **city leaderboard**, and contribute to
+**city-wide environmental goals** — with an always-on **AI assistant** ("Terra")
+grounded in their own footprint.
 
-Built with a Python (Flask) backend, a vanilla-JavaScript dashboard, and a
-**provider-agnostic AI layer** (Groq's Llama 3.3 70B by default, with Claude
-Opus 4.8 as an alternative) for the chat experience.
+Built with a Python (Flask) backend, a vanilla-JavaScript single-page dashboard
+(Chart.js visualisations, zero framework lock-in), and a **provider-agnostic AI
+layer** (Groq's Llama 3.3 70B by default, with Claude Opus 4.8 as an
+alternative).
 
 > **Chosen vertical:** Sustainability / Carbon Footprint Awareness for citizens
 > of a "green city".
+
+## 🖥️ The platform at a glance
+
+A full dashboard experience with a sidebar of 10 sections:
+
+- **Dashboard** — animated carbon-score ring, 4 KPI cards, an emission-source
+  donut, your "carbon journey" line chart, AI recommendation cards, and a smart
+  alert center.
+- **Carbon Tracker** — the lifestyle calculator; running it **live-updates** the
+  whole dashboard (score, donut, recommendations).
+- **AI Insights** — predictive **AI forecast** (linear projection of your trend)
+  plus all personalised recommendations.
+- **Rewards** — gamified levels, a points progress bar, and redeemable rewards
+  (metro pass, coupons, tree certificate…).
+- **Community** — a city leaderboard with a top-3 podium, and the active
+  community challenge.
+- **City Analytics** — a city Sustainability Index gauge, headline metrics, and
+  an interactive **area-wise emission heatmap**.
+- **Challenges**, **Notifications**, **Profile**, **Settings**.
+- **Terra AI** — a floating, streaming chat assistant available everywhere.
+
+Plus a fully **responsive** layout (collapsible sidebar + bottom nav on mobile)
+and micro-interactions throughout (count-up numbers, animated rings/gauges,
+progress transitions, hover effects).
 
 ---
 
@@ -87,15 +114,17 @@ The "smart" behaviour is intentionally **transparent and explainable**:
 GreenCityAI/
 ├── backend/
 │   ├── carbon_engine.py     # Pure logic: validation, estimation, recommendations
+│   ├── city_data.py         # Smart-city layer: profiles, leaderboard, heatmap,
+│   │                        #   rewards, challenge, trends, AI forecast
 │   ├── ai_assistant.py      # Provider-agnostic chat (Groq / Claude) + fallback
 │   ├── youtube_resources.py # Curated, hallucination-proof learning links
 │   └── app.py               # Flask REST API + SSE chat + static server
 ├── frontend/
-│   ├── index.html           # Accessible, semantic markup
-│   ├── css/styles.css        # Distinctive design, WCAG-AA, responsive
-│   └── js/app.js            # Calculator, resources, streaming chat (no inline JS)
+│   ├── index.html           # Dashboard SPA shell (10 sections), accessible markup
+│   ├── css/styles.css        # Premium design system, WCAG-AA, responsive
+│   └── js/app.js            # View router, charts, animations, chat (no inline JS)
 ├── tests/
-│   └── test_carbon_engine.py  # 37 tests: engine, AI providers/fallback, API
+│   └── test_carbon_engine.py  # 44 tests: engine, city data, AI, API contract
 ├── requirements.txt
 ├── .env.example             # Copy to .env and add your API key
 ├── LICENSE · README.md
@@ -103,14 +132,20 @@ GreenCityAI/
 
 **API**
 
-| Method | Route            | Purpose                                              |
-| ------ | ---------------- | ---------------------------------------------------- |
-| GET    | `/api/options`   | Valid dropdown choices (single source of truth)      |
-| POST   | `/api/analyse`   | Validate context → footprint + prioritised advice    |
-| GET    | `/api/resources` | Curated YouTube links (optionally per category)      |
-| POST   | `/api/chat`      | **Streaming** AI reply (Server-Sent Events)          |
-| GET    | `/api/status`    | Whether live AI is configured (vs fallback)          |
-| GET    | `/health`        | Liveness probe                                       |
+| Method | Route             | Purpose                                              |
+| ------ | ----------------- | ---------------------------------------------------- |
+| GET    | `/api/bootstrap`  | All dashboard data (profile, city, rewards, insights)|
+| GET    | `/api/options`    | Valid dropdown choices (single source of truth)      |
+| POST   | `/api/analyse`    | Footprint + score + advice + AI recommendation cards |
+| GET    | `/api/resources`  | Curated YouTube links (optionally per category)      |
+| POST   | `/api/chat`       | **Streaming** AI reply (Server-Sent Events)          |
+| GET    | `/api/status`     | Active AI provider (groq / claude / offline)         |
+| GET    | `/health`         | Liveness probe                                       |
+
+> The smart-city data (leaderboard, heatmap, challenge, rewards) is generated
+> **deterministically** in `city_data.py` — no database needed. The API contract
+> the frontend consumes is identical to what a real, DB-backed product would
+> serve, so it is straightforward to make multi-user later.
 
 ---
 
@@ -137,7 +172,7 @@ On Windows PowerShell, step 3 is the same: `python backend\app.py`.
 ## Run the tests
 
 ```bash
-pytest -q          # 37 tests, no network or API key required
+pytest -q          # 44 tests, no network or API key required
 ```
 
 ---
@@ -157,7 +192,7 @@ pytest -q          # 37 tests, no network or API key required
 - **Efficiency** — the footprint engine is pure O(1) arithmetic with no DB or
   network; chat responses are **streamed** (SSE) so the UI shows tokens as they
   arrive instead of blocking; YouTube links are computed, not fetched.
-- **Testing** — 37 `pytest` cases covering validation, the footprint maths, the
+- **Testing** — 44 `pytest` cases covering validation, the footprint maths, the
   recommendation prioritisation, the resource builder, the AI fallback
   responder, and the full HTTP contract (including the SSE stream) — all
   runnable offline.

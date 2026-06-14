@@ -4,149 +4,355 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-        content="GreenCityAI — an AI assistant that estimates your carbon footprint, gives a personalised action plan, and answers your sustainability questions." />
-  <title>GreenCityAI · AI Carbon Footprint Assistant</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+        content="GreenCityAI — a Smart City Sustainability Intelligence Platform: track your carbon footprint, get AI recommendations, earn rewards, and help your city hit its climate goals." />
+  <title>GreenCityAI · Smart City Sustainability Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="brand">
+  <div class="app">
+    <!-- ============================= SIDEBAR ============================= -->
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="sidebar__brand">
         <span class="brand__leaf" aria-hidden="true">🌱</span>
-        <div>
-          <h1>GreenCity<span class="brand__accent">AI</span></h1>
-          <p class="tagline">Estimate it · Understand it · Shrink it</p>
+        <span class="brand__name">GreenCity<span class="brand__accent">AI</span></span>
+      </div>
+
+      <nav class="nav" id="nav" aria-label="Sections">
+        <button class="nav__item is-active" data-view="dashboard"><span aria-hidden="true">📊</span> Dashboard</button>
+        <button class="nav__item" data-view="tracker"><span aria-hidden="true">🧮</span> Carbon Tracker</button>
+        <button class="nav__item" data-view="insights"><span aria-hidden="true">🤖</span> AI Insights</button>
+        <button class="nav__item" data-view="rewards"><span aria-hidden="true">🎁</span> Rewards</button>
+        <button class="nav__item" data-view="community"><span aria-hidden="true">👥</span> Community</button>
+        <button class="nav__item" data-view="city"><span aria-hidden="true">🏙️</span> City Analytics</button>
+        <button class="nav__item" data-view="challenges"><span aria-hidden="true">🏆</span> Challenges</button>
+        <button class="nav__item" data-view="notifications"><span aria-hidden="true">🔔</span> Notifications <span class="nav__badge" id="nav-alert-count"></span></button>
+        <button class="nav__item" data-view="profile"><span aria-hidden="true">👤</span> Profile</button>
+        <button class="nav__item" data-view="settings"><span aria-hidden="true">⚙️</span> Settings</button>
+      </nav>
+
+      <div class="profile-card" id="sidebar-profile" aria-label="Your profile">
+        <div class="profile-card__avatar" id="profile-initials">JD</div>
+        <div class="profile-card__meta">
+          <strong id="profile-name">—</strong>
+          <span class="profile-card__level" id="profile-level">—</span>
+          <span class="profile-card__points"><b id="profile-points">0</b> Points</span>
         </div>
       </div>
-      <p class="ai-badge" id="ai-badge" hidden>
-        <span class="ai-dot" aria-hidden="true"></span><span id="ai-badge-text"></span>
-      </p>
+    </aside>
+
+    <!-- ============================== MAIN ============================== -->
+    <div class="main">
+      <header class="topbar">
+        <button class="topbar__menu" id="menu-toggle" aria-label="Toggle navigation">☰</button>
+        <div class="search">
+          <span class="search__icon" aria-hidden="true">🔎</span>
+          <input id="search" type="search" placeholder="Search sustainability insights…" aria-label="Search" autocomplete="off" />
+        </div>
+        <div class="topbar__right">
+          <label class="city-selector">
+            <span class="visually-hidden-focusable">City</span>
+            <select id="city-selector" aria-label="Select city"></select>
+          </label>
+          <button class="icon-btn" id="bell-btn" aria-label="Notifications">
+            🔔<span class="icon-btn__badge" id="bell-count"></span>
+          </button>
+          <span class="ai-pill" id="ai-pill" title="AI assistant status">
+            <span class="ai-dot" aria-hidden="true"></span><span id="ai-pill-text">Terra AI</span>
+          </span>
+          <div class="avatar" id="topbar-avatar" aria-hidden="true">JD</div>
+        </div>
+      </header>
+
+      <main id="main" class="content">
+        <!-- ===================== DASHBOARD ===================== -->
+        <section id="view-dashboard" class="view" data-title="Dashboard">
+          <div class="view__head">
+            <div>
+              <h1>Welcome back, <span id="hello-name">there</span> 👋</h1>
+              <p class="view__sub">Here's your sustainability snapshot for <span id="hello-city">your city</span>.</p>
+            </div>
+          </div>
+
+          <!-- Hero -->
+          <div class="hero card">
+            <div class="hero__ring">
+              <svg viewBox="0 0 200 200" class="ring" aria-hidden="true">
+                <circle class="ring__bg" cx="100" cy="100" r="84" />
+                <circle class="ring__fg" id="hero-ring" cx="100" cy="100" r="84"
+                        transform="rotate(-90 100 100)" />
+              </svg>
+              <div class="hero__ring-label">
+                <span class="hero__score" id="hero-score">0</span><span class="hero__pct">%</span>
+                <span class="hero__status" id="hero-status">—</span>
+              </div>
+            </div>
+            <div class="hero__meta">
+              <p class="hero__title">Your Carbon Footprint Score</p>
+              <p class="hero__hint">Lower is greener — it estimates your emissions vs a high-impact lifestyle.</p>
+              <div class="hero__stats">
+                <div><span class="hero__stat-label">City Average</span><b id="hero-city-avg">—</b></div>
+                <div><span class="hero__stat-label">Your Rank</span><b id="hero-rank">—</b></div>
+                <div><span class="hero__stat-label">CO₂ Saved / mo</span><b id="hero-co2">—</b></div>
+                <div><span class="hero__stat-label">Trend</span><b id="hero-trend" class="trend-down">—</b></div>
+              </div>
+              <button class="btn-primary" data-go="tracker">Update my footprint →</button>
+            </div>
+          </div>
+
+          <!-- KPI cards -->
+          <div class="kpi-grid" id="kpi-grid"></div>
+
+          <!-- Charts -->
+          <div class="grid-2">
+            <div class="card">
+              <h3>Emission Sources</h3>
+              <div class="chart-wrap"><canvas id="donut-chart" height="240"></canvas></div>
+              <ul class="legend" id="donut-legend"></ul>
+            </div>
+            <div class="card">
+              <h3>Your Carbon Journey</h3>
+              <div class="chart-wrap"><canvas id="trend-chart" height="240"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Recommendations + alerts -->
+          <div class="grid-2">
+            <div class="card">
+              <h3>🤖 Personalised AI Recommendations</h3>
+              <div class="rec-list" id="rec-list"></div>
+            </div>
+            <div class="card">
+              <h3>⚡ Smart Alert Center</h3>
+              <div class="alert-list" id="alert-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== CARBON TRACKER ===================== -->
+        <section id="view-tracker" class="view" data-title="Carbon Tracker" hidden>
+          <div class="view__head"><div><h1>Carbon Tracker</h1>
+            <p class="view__sub">Tell us about your lifestyle to compute a precise footprint and refresh your dashboard.</p></div></div>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Your lifestyle</h3>
+              <form id="footprint-form" novalidate>
+                <fieldset>
+                  <legend>Transport</legend>
+                  <label for="transport_mode">Main mode of transport</label>
+                  <select id="transport_mode" name="transport_mode"></select>
+                  <label for="daily_commute_km">Daily travel distance (km)</label>
+                  <input type="number" id="daily_commute_km" name="daily_commute_km" min="0" max="1000" step="0.5" value="20" inputmode="decimal" required />
+                </fieldset>
+                <fieldset>
+                  <legend>Home</legend>
+                  <label for="heating">Home heating</label>
+                  <select id="heating" name="heating"></select>
+                  <label for="monthly_electricity_kwh">Monthly electricity use (kWh)</label>
+                  <input type="number" id="monthly_electricity_kwh" name="monthly_electricity_kwh" min="0" max="10000" step="1" value="250" inputmode="numeric" required />
+                  <label for="household_size">People in household</label>
+                  <input type="number" id="household_size" name="household_size" min="1" max="20" step="1" value="2" inputmode="numeric" required />
+                </fieldset>
+                <fieldset>
+                  <legend>Lifestyle</legend>
+                  <label for="diet">Diet</label>
+                  <select id="diet" name="diet"></select>
+                  <label for="flights_per_year">Flights per year</label>
+                  <input type="number" id="flights_per_year" name="flights_per_year" min="0" max="100" step="1" value="2" inputmode="numeric" required />
+                  <div class="checkbox-row">
+                    <input type="checkbox" id="recycles" name="recycles" checked />
+                    <label for="recycles">I recycle and compost regularly</label>
+                  </div>
+                </fieldset>
+                <button type="submit" class="btn-primary">⚡ Calculate &amp; update dashboard</button>
+              </form>
+            </div>
+            <div class="card results">
+              <h3 id="results-heading" tabindex="-1">Your results</h3>
+              <p id="status" class="status" role="status"></p>
+              <div id="results-empty" class="empty-state">
+                <div class="empty-state__icon" aria-hidden="true">🌍</div>
+                <p class="empty-state__title">Your footprint report appears here</p>
+                <p class="empty-state__text">Fill in your lifestyle and press <strong>Calculate</strong> to see your rating, an emissions breakdown, a personalised action plan, and learning videos.</p>
+              </div>
+              <div id="results-body" hidden>
+                <div class="summary">
+                  <div class="rating" id="rating-badge" aria-hidden="true"><span id="rating-letter">–</span></div>
+                  <div class="summary__numbers">
+                    <p class="big-number"><span id="total-tonnes">0</span><span class="unit"> t CO₂e / yr</span></p>
+                    <p id="comparison" class="comparison"></p>
+                  </div>
+                </div>
+                <h4>Where your emissions come from</h4>
+                <div class="chart-wrap"><canvas id="breakdown-chart" height="220"></canvas></div>
+                <table id="breakdown-table" class="visually-hidden-focusable">
+                  <caption>Annual emissions by category (kg CO₂e)</caption>
+                  <thead><tr><th>Category</th><th>kg CO₂e per year</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+                <h4>Your personalised action plan</h4>
+                <ol id="recommendations" class="recommendations"></ol>
+                <h4>📺 Learn more</h4>
+                <ul id="resources" class="resources" aria-label="Recommended learning videos"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== AI INSIGHTS ===================== -->
+        <section id="view-insights" class="view" data-title="AI Insights" hidden>
+          <div class="view__head"><div><h1>AI Insights</h1>
+            <p class="view__sub">Predictive analytics and personalised coaching from Terra AI.</p></div></div>
+          <div class="grid-2">
+            <div class="card forecast-card">
+              <h3>🔮 AI Forecast</h3>
+              <div class="forecast" id="forecast"></div>
+              <div class="chart-wrap"><canvas id="forecast-chart" height="220"></canvas></div>
+            </div>
+            <div class="card">
+              <h3>⚡ Smart Alerts</h3>
+              <div class="alert-list" id="alert-list-2"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>🤖 All AI Recommendations</h3>
+            <div class="rec-grid" id="rec-grid"></div>
+          </div>
+        </section>
+
+        <!-- ===================== REWARDS ===================== -->
+        <section id="view-rewards" class="view" data-title="Rewards" hidden>
+          <div class="view__head"><div><h1>Rewards</h1>
+            <p class="view__sub">Earn Green Points for sustainable actions and redeem real rewards.</p></div></div>
+          <div class="card level-card">
+            <div class="level-card__top">
+              <div>
+                <span class="level-card__label">Current Level</span>
+                <h2 id="rewards-level">—</h2>
+              </div>
+              <div class="level-card__points"><b id="rewards-points">0</b> / <span id="rewards-next">0</span> pts</div>
+            </div>
+            <div class="progress"><div class="progress__bar" id="rewards-progress"></div></div>
+          </div>
+          <h3 class="section-title">Available Rewards</h3>
+          <div class="reward-grid" id="reward-grid"></div>
+        </section>
+
+        <!-- ===================== COMMUNITY ===================== -->
+        <section id="view-community" class="view" data-title="Community" hidden>
+          <div class="view__head"><div><h1>Community</h1>
+            <p class="view__sub">Compete on the leaderboard and join your city's collective goals.</p></div></div>
+          <div class="card challenge-card" id="community-challenge"></div>
+          <div class="card">
+            <h3>🏆 Leaderboard</h3>
+            <div class="podium" id="podium"></div>
+            <div class="table-wrap"><table class="leaderboard" id="leaderboard"></table></div>
+          </div>
+        </section>
+
+        <!-- ===================== CITY ANALYTICS ===================== -->
+        <section id="view-city" class="view" data-title="City Analytics" hidden>
+          <div class="view__head"><div><h1>City Analytics</h1>
+            <p class="view__sub">A live intelligence view of your city's sustainability performance.</p></div></div>
+          <div class="grid-2">
+            <div class="card gauge-card">
+              <h3>City Sustainability Index</h3>
+              <div class="gauge" id="gauge"></div>
+            </div>
+            <div class="card">
+              <h3>Key Metrics</h3>
+              <div class="metric-grid" id="city-metrics"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>🗺️ Smart City Emission Heatmap</h3>
+            <p class="view__sub">Area-wise emission levels — <span class="dot dot--low"></span> low · <span class="dot dot--moderate"></span> moderate · <span class="dot dot--high"></span> high.</p>
+            <div class="heatmap" id="heatmap"></div>
+          </div>
+        </section>
+
+        <!-- ===================== CHALLENGES ===================== -->
+        <section id="view-challenges" class="view" data-title="Challenges" hidden>
+          <div class="view__head"><div><h1>Challenges</h1>
+            <p class="view__sub">Take on challenges to boost your impact and earn bonus points.</p></div></div>
+          <div class="reward-grid" id="challenge-grid"></div>
+        </section>
+
+        <!-- ===================== NOTIFICATIONS ===================== -->
+        <section id="view-notifications" class="view" data-title="Notifications" hidden>
+          <div class="view__head"><div><h1>Notifications</h1>
+            <p class="view__sub">Smart alerts about your footprint and your city.</p></div></div>
+          <div class="card"><div class="alert-list" id="alert-list-3"></div></div>
+        </section>
+
+        <!-- ===================== PROFILE ===================== -->
+        <section id="view-profile" class="view" data-title="Profile" hidden>
+          <div class="view__head"><div><h1>Profile</h1>
+            <p class="view__sub">Your sustainability identity.</p></div></div>
+          <div class="card profile-detail" id="profile-detail"></div>
+        </section>
+
+        <!-- ===================== SETTINGS ===================== -->
+        <section id="view-settings" class="view" data-title="Settings" hidden>
+          <div class="view__head"><div><h1>Settings</h1>
+            <p class="view__sub">Preferences and platform info.</p></div></div>
+          <div class="card">
+            <div class="setting-row">
+              <div><strong>City</strong><p class="view__sub">Used for city-wide analytics.</p></div>
+              <select id="settings-city" aria-label="City"></select>
+            </div>
+            <div class="setting-row">
+              <div><strong>AI Assistant</strong><p class="view__sub">Provider powering Terra.</p></div>
+              <span id="settings-ai" class="tag">—</span>
+            </div>
+            <div class="setting-row">
+              <div><strong>Reduced motion</strong><p class="view__sub">Honours your OS preference automatically.</p></div>
+              <span class="tag tag--muted">Auto</span>
+            </div>
+            <div class="setting-row">
+              <div><strong>Data &amp; privacy</strong><p class="view__sub">No personal data is stored — the app is stateless.</p></div>
+              <span class="tag tag--ok">Private by design</span>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
-  </header>
+  </div>
 
-  <main id="main" class="layout">
-    <!-- ============== LEFT: input form ============== -->
-    <section class="card" aria-labelledby="form-heading">
-      <h2 id="form-heading">Your lifestyle</h2>
-      <p class="card-sub">Tell us a little about your daily life to estimate your footprint.</p>
-      <form id="footprint-form" novalidate>
-        <fieldset>
-          <legend>Transport</legend>
-          <label for="transport_mode">Main mode of transport</label>
-          <select id="transport_mode" name="transport_mode"></select>
-          <label for="daily_commute_km">Daily travel distance (km)</label>
-          <input type="number" id="daily_commute_km" name="daily_commute_km"
-                 min="0" max="1000" step="0.5" value="20" inputmode="decimal" required />
-        </fieldset>
-
-        <fieldset>
-          <legend>Home</legend>
-          <label for="heating">Home heating</label>
-          <select id="heating" name="heating"></select>
-          <label for="monthly_electricity_kwh">Monthly electricity use (kWh)</label>
-          <input type="number" id="monthly_electricity_kwh" name="monthly_electricity_kwh"
-                 min="0" max="10000" step="1" value="250" inputmode="numeric" required />
-          <label for="household_size">People in household</label>
-          <input type="number" id="household_size" name="household_size"
-                 min="1" max="20" step="1" value="2" inputmode="numeric" required />
-        </fieldset>
-
-        <fieldset>
-          <legend>Lifestyle</legend>
-          <label for="diet">Diet</label>
-          <select id="diet" name="diet"></select>
-          <label for="flights_per_year">Flights per year</label>
-          <input type="number" id="flights_per_year" name="flights_per_year"
-                 min="0" max="100" step="1" value="2" inputmode="numeric" required />
-          <div class="checkbox-row">
-            <input type="checkbox" id="recycles" name="recycles" checked />
-            <label for="recycles">I recycle and compost regularly</label>
-          </div>
-        </fieldset>
-
-        <button type="submit" class="btn-primary">⚡ Calculate my footprint</button>
-      </form>
-    </section>
-
-    <!-- ============== RIGHT: results ============== -->
-    <section class="card results" aria-labelledby="results-heading" aria-live="polite">
-      <h2 id="results-heading">Your results</h2>
-      <p id="status" class="status" role="status"></p>
-
-      <div id="results-empty" class="empty-state">
-        <div class="empty-state__icon" aria-hidden="true">🌍</div>
-        <p class="empty-state__title">Your footprint report appears here</p>
-        <p class="empty-state__text">Fill in your lifestyle on the left and press
-          <strong>Calculate my footprint</strong> to see your rating, an emissions
-          breakdown, a personalised action plan, and learning videos.</p>
-      </div>
-
-      <div id="results-body" hidden>
-        <div class="summary">
-          <div class="rating" id="rating-badge" aria-hidden="true"><span id="rating-letter">–</span></div>
-          <div class="summary__numbers">
-            <p class="big-number">
-              <span id="total-tonnes">0</span><span class="unit"> t CO₂e / yr</span>
-            </p>
-            <p id="comparison" class="comparison"></p>
-          </div>
-        </div>
-
-        <h3>Where your emissions come from</h3>
-        <canvas id="breakdown-chart" width="400" height="220"
-                role="img" aria-label="Bar chart of emissions by category"></canvas>
-        <table id="breakdown-table" class="visually-hidden-focusable">
-          <caption>Annual emissions by category (kg CO₂e)</caption>
-          <thead><tr><th>Category</th><th>kg CO₂e per year</th></tr></thead>
-          <tbody></tbody>
-        </table>
-
-        <h3>Your personalised action plan</h3>
-        <ol id="recommendations" class="recommendations"></ol>
-
-        <h3>📺 Learn more</h3>
-        <p class="card-sub">Curated videos for your highest-impact area.</p>
-        <ul id="resources" class="resources" aria-label="Recommended learning videos"></ul>
-      </div>
-    </section>
-  </main>
-
-  <!-- ============== AI CHAT (floating) ============== -->
+  <!-- ============================ TERRA CHAT ============================ -->
   <button id="chat-toggle" class="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
-    <span aria-hidden="true">💬</span>
-    <span class="chat-toggle__label">Ask Terra</span>
+    <span aria-hidden="true">💬</span><span class="chat-toggle__label">Ask Terra</span>
   </button>
-
   <section id="chat-panel" class="chat-panel" aria-labelledby="chat-title" hidden>
     <header class="chat-header">
-      <div>
-        <h2 id="chat-title">Terra <span class="chat-sub">· your green assistant</span></h2>
-      </div>
+      <h2 id="chat-title">Terra <span class="chat-sub">· AI sustainability coach</span></h2>
       <button id="chat-close" class="chat-close" aria-label="Close chat">✕</button>
     </header>
-
     <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-label="Conversation with Terra"></div>
-
     <div class="chat-suggestions" id="chat-suggestions" aria-label="Suggested questions">
-      <button type="button" class="chip" data-q="How can I lower my transport emissions?">Lower transport emissions</button>
-      <button type="button" class="chip" data-q="What are easy ways to save energy at home?">Save energy at home</button>
-      <button type="button" class="chip" data-q="How does diet affect my carbon footprint?">Diet &amp; footprint</button>
+      <button type="button" class="chip" data-q="How can I reduce my footprint?">How can I reduce my footprint?</button>
+      <button type="button" class="chip" data-q="What is causing most of my emissions?">What's causing most emissions?</button>
+      <button type="button" class="chip" data-q="Suggest three eco-friendly actions for this week.">Suggest eco actions</button>
     </div>
-
     <form id="chat-form" class="chat-form">
       <label for="chat-input" class="visually-hidden-focusable">Your message</label>
-      <input id="chat-input" name="chat-input" type="text" autocomplete="off"
-             placeholder="Ask about reducing your footprint…" maxlength="2000" />
+      <input id="chat-input" name="chat-input" type="text" autocomplete="off" placeholder="Ask Terra anything…" maxlength="2000" />
       <button type="submit" class="chat-send" id="chat-send" aria-label="Send message">➤</button>
     </form>
   </section>
 
-  <footer class="site-footer">
-    <p>Built for a greener city · Estimates use public DEFRA / EPA / IPCC averages · AI by Claude.</p>
-  </footer>
+  <!-- ========================== MOBILE NAV ========================== -->
+  <nav class="bottom-nav" aria-label="Mobile navigation">
+    <button class="bottom-nav__item is-active" data-view="dashboard"><span aria-hidden="true">📊</span>Home</button>
+    <button class="bottom-nav__item" data-view="tracker"><span aria-hidden="true">🧮</span>Track</button>
+    <button class="bottom-nav__item" data-view="city"><span aria-hidden="true">🏙️</span>City</button>
+    <button class="bottom-nav__item" data-view="rewards"><span aria-hidden="true">🎁</span>Rewards</button>
+    <button class="bottom-nav__item" data-view="community"><span aria-hidden="true">👥</span>Ranks</button>
+  </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
   <script src="js/app.js" defer></script>
