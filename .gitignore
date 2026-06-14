@@ -1,26 +1,72 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-env/
-myenv/
-*venv/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# OS / editor / local tooling
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-.claude/
-
-# Secrets / local config — never commit API keys
+# ---------------------------------------------------------------------------
+# Secrets & local config — NEVER commit real API keys
+# ---------------------------------------------------------------------------
 .env
 .env.*
 !.env.example
+*.key
+secrets.json
 
-# Logs
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+wheels/
+.Python
+
+# Virtual environments (any name)
+.venv/
+venv/
+env/
+ENV/
+myenv/
+*venv/
+env.bak/
+venv.bak/
+
+# Test / coverage / type / lint caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ---------------------------------------------------------------------------
+# Editors / IDEs / local tooling
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# OS-generated files
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Logs & temp
+# ---------------------------------------------------------------------------
 *.log
+*.tmp
+*.bak
+_*.txt
