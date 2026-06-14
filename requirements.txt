@@ -1,4 +1,4 @@
+# Runtime dependencies (installed in production / on Vercel).
 Flask==3.0.3
 groq==1.2.0
 anthropic==0.109.1
-pytest==8.2.0

@@ -15,8 +15,6 @@ and per-user rows; the API contract the frontend consumes would not change.
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 # --------------------------------------------------------------------------- #
 # Gamification: levels
 # --------------------------------------------------------------------------- #
@@ -32,7 +30,7 @@ LEVELS = [
 ]
 
 
-def _level_for(points: int) -> Dict[str, object]:
+def _level_for(points: int) -> dict[str, object]:
     """Resolve a points total into a level, plus progress to the next one."""
     current_name, current_min = LEVELS[0]
     next_name, next_min = LEVELS[-1][0], LEVELS[-1][1]
@@ -65,7 +63,7 @@ USER_STREAK_DAYS = 14
 USER_RANK = 45
 
 
-def profile() -> Dict[str, object]:
+def profile() -> dict[str, object]:
     """Return the current user's gamified profile."""
     level = _level_for(USER_POINTS)
     return {
@@ -90,7 +88,7 @@ _REWARDS = [
 ]
 
 
-def rewards() -> List[Dict[str, object]]:
+def rewards() -> list[dict[str, object]]:
     """Reward catalogue with unlock status based on the user's points."""
     return [
         {
@@ -98,7 +96,7 @@ def rewards() -> List[Dict[str, object]]:
             "cost": cost,
             "icon": icon,
             "description": desc,
-            "unlocked": USER_POINTS >= cost,
+            "unlocked": cost <= USER_POINTS,
         }
         for name, cost, icon, desc in _REWARDS
     ]
@@ -125,7 +123,7 @@ def _emission_level(score: int) -> str:
     return "high"
 
 
-def areas() -> List[Dict[str, object]]:
+def areas() -> list[dict[str, object]]:
     """Area-level emission data for the smart-city heatmap."""
     return [
         {"name": name, "score": score, "level": _emission_level(score)}
@@ -147,7 +145,7 @@ _LEADERBOARD = [
 ]
 
 
-def leaderboard() -> List[Dict[str, object]]:
+def leaderboard() -> list[dict[str, object]]:
     """Top citizens plus the current user, flagged with ``is_you``."""
     board = [
         {
@@ -173,7 +171,7 @@ def leaderboard() -> List[Dict[str, object]]:
     return board
 
 
-def city_index() -> Dict[str, object]:
+def city_index() -> dict[str, object]:
     """Headline city sustainability metrics."""
     ranked = areas()
     best = min(ranked, key=lambda a: a["score"])
@@ -188,7 +186,7 @@ def city_index() -> Dict[str, object]:
     }
 
 
-def challenge() -> Dict[str, object]:
+def challenge() -> dict[str, object]:
     """The active community challenge."""
     goal, completed = 10.0, 7.5
     return {
@@ -218,7 +216,7 @@ MONTHLY_TREND = [
 FORECAST_THRESHOLD = 50  # Above this, warn the user.
 
 
-def forecast(trend: List[Dict[str, object]] | None = None) -> Dict[str, object]:
+def forecast(trend: list[dict[str, object]] | None = None) -> dict[str, object]:
     """Project next period's carbon score with a simple linear fit.
 
     A transparent least-squares slope over the recent points — explainable and
@@ -231,7 +229,7 @@ def forecast(trend: List[Dict[str, object]] | None = None) -> Dict[str, object]:
     mean_x = sum(xs) / n
     mean_y = sum(scores) / n
     denom = sum((x - mean_x) ** 2 for x in xs) or 1
-    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, scores)) / denom
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, scores, strict=True)) / denom
     predicted = round(max(0, min(100, scores[-1] + slope)))
     direction = "down" if slope < -0.5 else "up" if slope > 0.5 else "flat"
     return {
@@ -274,7 +272,7 @@ DEMO_ALERTS = [
 ]
 
 
-def bootstrap() -> Dict[str, object]:
+def bootstrap() -> dict[str, object]:
     """One payload powering the whole dashboard on first load."""
     return {
         "profile": profile(),

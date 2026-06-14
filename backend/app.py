@@ -17,8 +17,6 @@ import time
 from collections import deque
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, request, send_from_directory
-
 import ai_assistant
 import city_data
 import youtube_resources
@@ -30,6 +28,8 @@ from carbon_engine import (
     ValidationError,
     analyse,
 )
+from flask import Flask, Response, jsonify, request, send_from_directory
+
 
 def _load_dotenv() -> None:
     """Load KEY=VALUE pairs from a project-root .env into the environment.

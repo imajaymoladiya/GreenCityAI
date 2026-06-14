@@ -21,14 +21,13 @@ dictionaries so they are easy to audit, tweak, or localise.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 # --------------------------------------------------------------------------- #
 # Emission factors (kg CO2e). Kept as data, not code, so they are auditable.
 # --------------------------------------------------------------------------- #
 
 # Transport: kg CO2e per passenger-kilometre.
-TRANSPORT_FACTORS: Dict[str, float] = {
+TRANSPORT_FACTORS: dict[str, float] = {
     "petrol_car": 0.192,
     "diesel_car": 0.171,
     "electric_car": 0.053,
@@ -40,7 +39,7 @@ TRANSPORT_FACTORS: Dict[str, float] = {
 }
 
 # Diet: annual kg CO2e attributable to food for one person.
-DIET_FACTORS: Dict[str, float] = {
+DIET_FACTORS: dict[str, float] = {
     "meat_heavy": 3300.0,
     "average": 2500.0,
     "low_meat": 2300.0,
@@ -49,7 +48,7 @@ DIET_FACTORS: Dict[str, float] = {
 }
 
 # Home heating: annual kg CO2e for a typical household, divided per occupant.
-HEATING_FACTORS: Dict[str, float] = {
+HEATING_FACTORS: dict[str, float] = {
     "natural_gas": 2000.0,
     "oil": 2700.0,
     "electric": 1500.0,
@@ -114,7 +113,7 @@ class UserContext:
         )
 
     @staticmethod
-    def _validate_choice(field_name: str, value: object, allowed: Dict[str, float]) -> None:
+    def _validate_choice(field_name: str, value: object, allowed: dict[str, float]) -> None:
         if value not in allowed:
             options = ", ".join(sorted(allowed))
             raise ValidationError(
@@ -144,12 +143,12 @@ class Recommendation:
 class FootprintResult:
     """The full result returned by the engine."""
 
-    breakdown: Dict[str, float]
+    breakdown: dict[str, float]
     total_annual_kg: float
     vs_global_average_pct: float
     vs_paris_target_pct: float
     rating: str
-    recommendations: List[Recommendation] = field(default_factory=list)
+    recommendations: list[Recommendation] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """Serialise to plain JSON-friendly types for the API layer."""
@@ -171,7 +170,7 @@ class FootprintResult:
         }
 
 
-def estimate_footprint(ctx: UserContext) -> Dict[str, float]:
+def estimate_footprint(ctx: UserContext) -> dict[str, float]:
     """Return annual CO2e (kg) broken down by category for the given context."""
     transport = (
         TRANSPORT_FACTORS[ctx.transport_mode] * ctx.daily_commute_km * DAYS_PER_YEAR
@@ -212,7 +211,7 @@ def _rate(total_annual_kg: float) -> str:
     return "E"
 
 
-def recommend(ctx: UserContext, breakdown: Dict[str, float]) -> List[Recommendation]:
+def recommend(ctx: UserContext, breakdown: dict[str, float]) -> list[Recommendation]:
     """Produce prioritised, context-aware suggestions.
 
     The decision logic targets the user's *largest* emission sources first and
@@ -220,7 +219,7 @@ def recommend(ctx: UserContext, breakdown: Dict[str, float]) -> List[Recommendat
     it will not tell a cyclist to drive less). Each suggestion carries an
     estimated annual saving so the dashboard can sort and quantify impact.
     """
-    recs: List[Recommendation] = []
+    recs: list[Recommendation] = []
 
     # --- Transport: only relevant if they already emit from travel. ---------
     transport_kg = breakdown["transport"]

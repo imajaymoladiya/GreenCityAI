@@ -118,16 +118,24 @@ GreenCityAI/
 │   │                        #   rewards, challenge, trends, AI forecast
 │   ├── ai_assistant.py      # Provider-agnostic chat (Groq / Claude) + fallback
 │   ├── youtube_resources.py # Curated, hallucination-proof learning links
-│   └── app.py               # Flask REST API + SSE chat + static server
+│   └── app.py               # Flask REST API + SSE chat + rate limiting + static
 ├── frontend/
 │   ├── index.html           # Dashboard SPA shell (10 sections), accessible markup
 │   ├── css/styles.css        # Premium design system, WCAG-AA, responsive
-│   └── js/app.js            # View router, charts, animations, chat (no inline JS)
-├── tests/
-│   └── test_carbon_engine.py  # 44 tests: engine, city data, AI, API contract
-├── requirements.txt
-├── .env.example             # Copy to .env and add your API key
-├── LICENSE · README.md
+│   └── js/                  # ES modules (no inline JS, no build step):
+│       ├── core.js          #   shared state, constants, DOM/animation helpers
+│       ├── charts.js        #   Chart.js visualisations + SVG gauge
+│       ├── dashboard.js     #   hero ring, KPIs, recommendations, alerts
+│       ├── sections.js      #   rewards, community, city analytics, profile
+│       ├── calculator.js    #   the footprint tracker + results
+│       ├── chat.js          #   Terra streaming chat (SSE parser)
+│       └── main.js          #   view router + event wiring (entry module)
+├── api/index.py             # Vercel serverless entry (exposes the Flask app)
+├── tests/test_carbon_engine.py  # 46 tests: engine, city data, AI, API, limits
+├── .github/workflows/ci.yml # CI: ruff lint + pytest on every push
+├── pyproject.toml           # ruff + pytest config
+├── requirements.txt · requirements-dev.txt
+├── vercel.json · .env.example · LICENSE · README.md
 ```
 
 **API**
@@ -169,10 +177,12 @@ python backend/app.py
 
 On Windows PowerShell, step 3 is the same: `python backend\app.py`.
 
-## Run the tests
+## Run the tests & linter
 
 ```bash
-pytest -q          # 46 tests, no network or API key required
+pip install -r requirements-dev.txt   # pytest + ruff
+pytest -q                              # 46 tests, no network or API key required
+ruff check backend tests api           # lint (also runs in CI on every push)
 ```
 
 ---
@@ -202,12 +212,15 @@ as a serverless function and [`vercel.json`](vercel.json) routes every request
 
 ## How each evaluation area is addressed
 
-- **Code Quality** — small, single-responsibility modules (`carbon_engine`,
-  `city_data`, `ai_assistant`, `youtube_resources`), each with type hints,
-  docstrings, and meaningful comments; business logic is fully decoupled from
-  Flask and from the LLM SDK; the AI layer exposes one clean generator used
-  identically across providers and the offline path; the frontend is split into
-  a view router plus focused render functions with no inline JS.
+- **Code Quality** — small, single-responsibility modules on both ends: the
+  backend (`carbon_engine`, `city_data`, `ai_assistant`, `youtube_resources`)
+  and the frontend, split into 7 focused **ES modules** (`core`, `charts`,
+  `dashboard`, `sections`, `calculator`, `chat`, `main`) with no inline JS and
+  no build step. Type hints, docstrings, and meaningful comments throughout;
+  business logic decoupled from Flask and the LLM SDK; the AI layer exposes one
+  generator used identically across providers and the offline path.
+  Consistency is enforced by **ruff** (clean, configured in `pyproject.toml`),
+  an `.editorconfig`, and **GitHub Actions CI** that lints and tests every push.
 - **Security** — API key read from the environment and **never committed**
   (`.env` gitignored; history verified clean); **per-IP rate limiting** on the AI
   endpoint to protect the key and cost; strict input validation with bounds and

@@ -13,6 +13,10 @@ import pytest
 # Make the backend package importable without installing it.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
+import ai_assistant  # noqa: E402
+import app as flask_app  # noqa: E402
+import city_data  # noqa: E402
+import youtube_resources  # noqa: E402
 from carbon_engine import (  # noqa: E402
     GLOBAL_AVERAGE_ANNUAL,
     UserContext,
@@ -21,11 +25,6 @@ from carbon_engine import (  # noqa: E402
     estimate_footprint,
     recommend,
 )
-import app as flask_app  # noqa: E402
-import ai_assistant  # noqa: E402
-import city_data  # noqa: E402
-import youtube_resources  # noqa: E402
-
 
 # --------------------------------------------------------------------------- #
 # Validation
@@ -295,9 +294,10 @@ def test_chat_endpoint_rejects_bad_body(client):
 
 def test_chat_endpoint_is_rate_limited(client, offline):
     flask_app._rate_hits.clear()
+    body = {"messages": [{"role": "user", "content": "hi"}]}
     try:
         statuses = [
-            client.post("/api/chat", json={"messages": [{"role": "user", "content": "hi"}]}).status_code
+            client.post("/api/chat", json=body).status_code
             for _ in range(flask_app._RATE_LIMIT + 5)
         ]
         assert 429 in statuses  # the budget is enforced

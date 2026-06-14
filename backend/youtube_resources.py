@@ -11,7 +11,6 @@ well-formed and safe to drop straight into an ``href``.
 
 from __future__ import annotations
 
-from typing import Dict, List
 from urllib.parse import quote_plus
 
 _SEARCH_BASE = "https://www.youtube.com/results?search_query="
@@ -22,52 +21,53 @@ def _link(query: str) -> str:
     return _SEARCH_BASE + quote_plus(query)
 
 
-# One short, high-signal set of searches per emission category. Titles are what
-# the dashboard shows; queries are tuned to return practical, how-to content.
-_CATALOG: Dict[str, List[Dict[str, str]]] = {
+# One short, high-signal set of searches per emission category, stored as
+# (display title, search query) pairs. Titles are shown in the dashboard;
+# queries are tuned to surface practical, how-to content.
+_CATALOG: dict[str, list[tuple[str, str]]] = {
     "transport": [
-        {"title": "How to cut your commute emissions", "query": "how to reduce car commute carbon emissions"},
-        {"title": "Are electric cars really greener?", "query": "are electric cars better for the environment explained"},
-        {"title": "Cycling & public transport tips", "query": "switching to cycling and public transport sustainable commute"},
+        ("How to cut your commute emissions", "how to reduce car commute carbon emissions"),
+        ("Are electric cars really greener?", "are electric cars better for the environment"),
+        ("Cycling & public transport tips", "switching to cycling and public transport commute"),
     ],
     "diet": [
-        {"title": "Eating for a lower carbon footprint", "query": "low carbon footprint diet explained"},
-        {"title": "Plant-based meals for beginners", "query": "easy plant based meals for beginners climate"},
-        {"title": "The climate impact of food", "query": "carbon footprint of different foods comparison"},
+        ("Eating for a lower carbon footprint", "low carbon footprint diet explained"),
+        ("Plant-based meals for beginners", "easy plant based meals for beginners climate"),
+        ("The climate impact of food", "carbon footprint of different foods comparison"),
     ],
     "home_heating": [
-        {"title": "Heat pumps explained", "query": "how do heat pumps work home heating efficiency"},
-        {"title": "Home insulation that pays off", "query": "best home insulation to save energy and money"},
-        {"title": "Lower your heating bills sustainably", "query": "reduce home heating carbon footprint tips"},
+        ("Heat pumps explained", "how do heat pumps work home heating efficiency"),
+        ("Home insulation that pays off", "best home insulation to save energy and money"),
+        ("Lower your heating bills sustainably", "reduce home heating carbon footprint tips"),
     ],
     "electricity": [
-        {"title": "Switching to renewable energy at home", "query": "how to switch to renewable energy tariff home"},
-        {"title": "Cut your electricity use", "query": "easy ways to reduce home electricity consumption"},
-        {"title": "Smart home energy saving", "query": "smart home devices to save electricity"},
+        ("Switching to renewable energy at home", "how to switch to renewable energy tariff home"),
+        ("Cut your electricity use", "easy ways to reduce home electricity consumption"),
+        ("Smart home energy saving", "smart home devices to save electricity"),
     ],
     "flights": [
-        {"title": "The carbon cost of flying", "query": "carbon footprint of flying explained"},
-        {"title": "Train vs plane for travel", "query": "train versus plane carbon emissions travel"},
-        {"title": "Flying less, traveling smarter", "query": "how to reduce flight emissions sustainable travel"},
+        ("The carbon cost of flying", "carbon footprint of flying explained"),
+        ("Train vs plane for travel", "train versus plane carbon emissions travel"),
+        ("Flying less, traveling smarter", "how to reduce flight emissions sustainable travel"),
     ],
     "waste": [
-        {"title": "Recycling done right", "query": "how to recycle properly reduce waste"},
-        {"title": "Composting at home", "query": "home composting for beginners reduce food waste"},
-        {"title": "Living a low-waste life", "query": "zero waste lifestyle practical tips"},
+        ("Recycling done right", "how to recycle properly reduce waste"),
+        ("Composting at home", "home composting for beginners reduce food waste"),
+        ("Living a low-waste life", "zero waste lifestyle practical tips"),
     ],
     "general": [
-        {"title": "Understand your carbon footprint", "query": "what is a carbon footprint explained simply"},
-        {"title": "Small habits, big climate impact", "query": "everyday habits to reduce carbon footprint"},
+        ("Understand your carbon footprint", "what is a carbon footprint explained simply"),
+        ("Small habits, big climate impact", "everyday habits to reduce carbon footprint"),
     ],
 }
 
 
-def resources_for(category: str) -> List[Dict[str, str]]:
+def resources_for(category: str) -> list[dict[str, str]]:
     """Return resource cards (title + url) for one category, or general tips."""
     entries = _CATALOG.get(category, _CATALOG["general"])
-    return [{"title": e["title"], "url": _link(e["query"])} for e in entries]
+    return [{"title": title, "url": _link(query)} for title, query in entries]
 
 
-def all_resources() -> Dict[str, List[Dict[str, str]]]:
+def all_resources() -> dict[str, list[dict[str, str]]]:
     """Return the full catalog keyed by category, with ready-to-use URLs."""
     return {category: resources_for(category) for category in _CATALOG}

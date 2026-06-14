@@ -1,0 +1,21 @@
+# Tooling configuration for GreenCityAI.
+# Lint:  ruff check backend tests api
+# Tests: pytest
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# A pragmatic, quality-focused rule set:
+#   E/W pycodestyle · F pyflakes · I import-sorting · B bugbear
+#   C4 comprehensions · UP pyupgrade · SIM simplify · RET returns · PIE misc
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RET", "PIE"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests favour readability over import-at-top and a few long literals.
+"tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

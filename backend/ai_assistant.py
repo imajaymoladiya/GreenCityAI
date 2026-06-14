@@ -19,7 +19,7 @@ runs even if only one (or neither) SDK is installed.
 from __future__ import annotations
 
 import os
-from typing import Dict, Iterator, List, Optional
+from collections.abc import Iterator
 
 # Per-provider default models, overridable via env for cost/speed tuning.
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -54,6 +54,14 @@ SYSTEM_PROMPT = (
 )
 
 
+def _error_reply(exc: Exception) -> str:
+    """A friendly, non-leaky message shown when a provider call fails."""
+    return (
+        "Sorry — I couldn't reach the AI service just now "
+        f"({exc.__class__.__name__}). Please try again in a moment."
+    )
+
+
 def active_provider() -> str:
     """Return the backend that will handle requests: 'groq', 'claude', or 'offline'."""
     if os.environ.get("GROQ_API_KEY"):
@@ -68,7 +76,7 @@ def is_available() -> bool:
     return active_provider() != "offline"
 
 
-def _format_footprint(footprint: Optional[dict]) -> str:
+def _format_footprint(footprint: dict | None) -> str:
     """Render the user's footprint into a compact context string for the model."""
     if not footprint:
         return ""
@@ -86,9 +94,9 @@ def _format_footprint(footprint: Optional[dict]) -> str:
     )
 
 
-def _sanitise_history(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def _sanitise_history(messages: list[dict[str, str]]) -> list[dict[str, str]]:
     """Validate and trim the conversation history to a safe, well-formed shape."""
-    clean: List[Dict[str, str]] = []
+    clean: list[dict[str, str]] = []
     for msg in messages[-MAX_HISTORY_MESSAGES:]:
         role = msg.get("role")
         content = msg.get("content")
@@ -101,7 +109,7 @@ def _sanitise_history(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
 
 def stream_reply(
-    messages: List[Dict[str, str]], footprint: Optional[dict] = None
+    messages: list[dict[str, str]], footprint: dict | None = None
 ) -> Iterator[str]:
     """Yield the assistant's reply as text chunks, routing to the active provider."""
     history = _sanitise_history(messages)
@@ -119,7 +127,7 @@ def stream_reply(
         yield from _fallback_reply(history[-1]["content"], footprint)
 
 
-def _stream_from_groq(system: str, history: List[Dict[str, str]]) -> Iterator[str]:
+def _stream_from_groq(system: str, history: list[dict[str, str]]) -> Iterator[str]:
     """Stream a grounded response from Groq (OpenAI-compatible chat completions)."""
     import groq
 
@@ -141,13 +149,10 @@ def _stream_from_groq(system: str, history: List[Dict[str, str]]) -> Iterator[st
             if delta:
                 yield delta
     except groq.GroqError as exc:  # network / auth / rate-limit, etc.
-        yield (
-            "Sorry — I couldn't reach the AI service just now "
-            f"({exc.__class__.__name__}). Please try again in a moment."
-        )
+        yield _error_reply(exc)
 
 
-def _stream_from_claude(system: str, history: List[Dict[str, str]]) -> Iterator[str]:
+def _stream_from_claude(system: str, history: list[dict[str, str]]) -> Iterator[str]:
     """Stream a grounded response from Claude via the Anthropic SDK."""
     import anthropic
 
@@ -161,13 +166,9 @@ def _stream_from_claude(system: str, history: List[Dict[str, str]]) -> Iterator[
             system=system,
             messages=history,
         ) as stream:
-            for text in stream.text_stream:
-                yield text
+            yield from stream.text_stream
     except anthropic.APIError as exc:
-        yield (
-            "Sorry — I couldn't reach the AI service just now "
-            f"({exc.__class__.__name__}). Please try again in a moment."
-        )
+        yield _error_reply(exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -209,7 +210,7 @@ _FALLBACK_TIPS = {
 }
 
 
-def _fallback_reply(user_text: str, footprint: Optional[dict]) -> Iterator[str]:
+def _fallback_reply(user_text: str, footprint: dict | None) -> Iterator[str]:
     """A useful, deterministic answer when no AI provider is configured."""
     lowered = user_text.lower()
     matched = [
