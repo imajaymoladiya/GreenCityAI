@@ -275,7 +275,7 @@ input[type=number], select, #chat-input { width: 100%; padding: 0.6rem 0.7rem; b
 .heat-tile { border-radius: var(--radius-sm); padding: 0.9rem; color: #fff; position: relative; overflow: hidden; transition: transform 0.15s; }
 .heat-tile:hover { transform: scale(1.03); }
 .heat-tile.low { background: linear-gradient(135deg, #16a34a, #22c55e); }
-.heat-tile.moderate { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.heat-tile.moderate { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #422006; }
 .heat-tile.high { background: linear-gradient(135deg, #ef4444, #f87171); }
 .heat-tile__name { font-weight: 800; }
 .heat-tile__score { font-size: 1.3rem; font-weight: 900; }

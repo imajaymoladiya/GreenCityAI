@@ -172,34 +172,49 @@ On Windows PowerShell, step 3 is the same: `python backend\app.py`.
 ## Run the tests
 
 ```bash
-pytest -q          # 44 tests, no network or API key required
+pytest -q          # 46 tests, no network or API key required
 ```
 
 ---
 
 ## How each evaluation area is addressed
 
-- **Code Quality** — small, single-responsibility modules; type hints,
-  docstrings, meaningful comments; logic decoupled from Flask and from the LLM
-  SDK; the AI layer exposes one clean generator used identically in both modes.
+- **Code Quality** — small, single-responsibility modules (`carbon_engine`,
+  `city_data`, `ai_assistant`, `youtube_resources`), each with type hints,
+  docstrings, and meaningful comments; business logic is fully decoupled from
+  Flask and from the LLM SDK; the AI layer exposes one clean generator used
+  identically across providers and the offline path; the frontend is split into
+  a view router plus focused render functions with no inline JS.
 - **Security** — API key read from the environment and **never committed**
-  (`.env` is gitignored); strict input validation with bounds; request-key
-  whitelisting; request-size cap; chat history length/size limits; security
-  headers (CSP, `X-Frame-Options`, `nosniff`); errors never leak internals;
-  prompt-injection note in the system prompt; XSS-safe frontend that uses
-  `textContent` and `rel="noopener noreferrer"` on external links; debug off by
-  default; pinned dependencies.
-- **Efficiency** — the footprint engine is pure O(1) arithmetic with no DB or
-  network; chat responses are **streamed** (SSE) so the UI shows tokens as they
-  arrive instead of blocking; YouTube links are computed, not fetched.
-- **Testing** — 44 `pytest` cases covering validation, the footprint maths, the
-  recommendation prioritisation, the resource builder, the AI fallback
-  responder, and the full HTTP contract (including the SSE stream) — all
-  runnable offline.
+  (`.env` gitignored; history verified clean); **per-IP rate limiting** on the AI
+  endpoint to protect the key and cost; strict input validation with bounds and
+  request-key whitelisting; request-size cap; chat history length/size limits;
+  security headers (CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`);
+  errors never leak internals; prompt-injection note in the system prompt;
+  XSS-safe frontend (`textContent` only, `rel="noopener noreferrer"` on external
+  links); debug off by default; pinned dependencies.
+- **Efficiency** — the footprint engine and city layer are pure O(1)/O(n)
+  computation with no DB or network calls; chat responses are **streamed** (SSE)
+  so tokens render as they arrive; Chart.js instances are destroyed before
+  recreation (no leaks); the dashboard loads from a single `/api/bootstrap`
+  call; YouTube links are computed, not fetched.
+- **Testing** — 46 `pytest` cases covering validation, the footprint maths, the
+  recommendation prioritisation, the smart-city data layer (levels, leaderboard,
+  heatmap, rewards, forecast), the resource builder, the AI provider selection
+  and offline fallback, rate limiting, and the full HTTP contract (including the
+  SSE stream) — all runnable offline with no API key.
 - **Accessibility** — semantic landmarks, skip link, labelled controls, visible
-  focus, a screen-reader table mirroring the chart, live regions for results and
-  chat, `aria-expanded`/`aria-controls` on the chat toggle, Escape-to-close,
-  focus management, and `prefers-reduced-motion` support.
+  focus, `aria-current="page"` on the active nav, `role="img"` + data-bearing
+  `aria-label`s on every chart canvas (plus a screen-reader table for the
+  tracker), live regions for results and chat, `aria-expanded`/`aria-controls`
+  on the chat toggle, Escape-to-close, focus management, WCAG-AA contrast
+  (including dark text on amber heatmap tiles), and `prefers-reduced-motion`
+  support.
+- **Problem Statement Alignment** — a *smart, dynamic assistant with logical
+  decision-making based on user context*: the engine emits only applicable,
+  impact-ranked actions; the dashboard, recommendations, and AI chat all adapt
+  to the user's computed footprint; and the result is a practical, real-world
+  Smart City sustainability platform, not a one-shot calculator.
 
 ---
 

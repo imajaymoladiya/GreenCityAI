@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from collections import deque
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory
@@ -59,6 +61,32 @@ app = Flask(__name__, static_folder=None)
 # Reject oversized bodies early — a cheap defence against memory-exhaustion.
 # 64 KB comfortably covers a full chat history plus footprint context.
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+
+
+# --------------------------------------------------------------------------- #
+# Lightweight in-memory rate limiter — protects the AI endpoint (and its API
+# key / cost) from abuse. A fixed window of N requests per IP. For a single
+# process this needs no dependency; a multi-process deploy would use Redis.
+# --------------------------------------------------------------------------- #
+_RATE_LIMIT = 20          # requests allowed per IP...
+_RATE_WINDOW = 60.0       # ...within this many seconds.
+_rate_hits: dict[str, deque] = {}
+
+
+def _rate_limited(key: str) -> bool:
+    """Return True if this key has exceeded the request budget."""
+    now = time.monotonic()
+    hits = _rate_hits.setdefault(key, deque())
+    while hits and now - hits[0] > _RATE_WINDOW:
+        hits.popleft()
+    if not hits and key in _rate_hits:
+        # Keep the table from growing unbounded across many transient IPs.
+        _rate_hits.pop(key, None)
+        hits = _rate_hits.setdefault(key, deque())
+    if len(hits) >= _RATE_LIMIT:
+        return True
+    hits.append(now)
+    return False
 
 
 @app.after_request
@@ -180,6 +208,9 @@ def chat():
     "footprint": <optional analysis dict>}``. The response is a text/event-stream
     of ``{"text": "..."}`` chunks, terminated by ``{"done": true}``.
     """
+    if _rate_limited(request.remote_addr or "unknown"):
+        return jsonify({"error": "Too many requests — please slow down."}), 429
+
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify({"error": "Request body must be a JSON object."}), 400

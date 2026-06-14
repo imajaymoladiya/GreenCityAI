@@ -58,8 +58,12 @@ function scoreStatus(score) {
 /* ============================== ROUTER ============================== */
 function switchView(name) {
   document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
-  document.querySelectorAll("[data-view]").forEach((b) =>
-    b.classList.toggle("is-active", b.dataset.view === name));
+  document.querySelectorAll("[data-view]").forEach((b) => {
+    const active = b.dataset.view === name;
+    b.classList.toggle("is-active", active);
+    if (active) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
   $("sidebar").classList.remove("is-open");
   window.scrollTo({ top: 0, behavior: "smooth" });
   // Charts created while hidden render at 0px — resize them now they're visible.
@@ -139,6 +143,8 @@ function renderDonut(items) {
     },
     options: { cutout: "64%", plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw}%` } } } },
   });
+  $("donut-chart").setAttribute("aria-label",
+    "Emission sources: " + items.map((i) => `${i.category} ${i.pct}%`).join(", "));
   const legend = $("donut-legend");
   legend.replaceChildren();
   items.forEach((it, i) => {
@@ -150,6 +156,8 @@ function renderDonut(items) {
 }
 
 function renderTrend(trend) {
+  $("trend-chart").setAttribute("aria-label",
+    "Monthly carbon score: " + trend.map((t) => `${t.month} ${t.score}%`).join(", "));
   const ctx = $("trend-chart").getContext("2d");
   if (state.charts.trend) state.charts.trend.destroy();
   state.charts.trend = new Chart(ctx, {

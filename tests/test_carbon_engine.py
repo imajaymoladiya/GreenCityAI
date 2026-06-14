@@ -293,6 +293,19 @@ def test_chat_endpoint_rejects_bad_body(client):
     assert res.status_code == 400
 
 
+def test_chat_endpoint_is_rate_limited(client, offline):
+    flask_app._rate_hits.clear()
+    try:
+        statuses = [
+            client.post("/api/chat", json={"messages": [{"role": "user", "content": "hi"}]}).status_code
+            for _ in range(flask_app._RATE_LIMIT + 5)
+        ]
+        assert 429 in statuses  # the budget is enforced
+        assert statuses[0] == 200  # early requests still succeed
+    finally:
+        flask_app._rate_hits.clear()
+
+
 def test_status_endpoint_reports_mode(client):
     res = client.get("/api/status")
     assert res.status_code == 200

@@ -111,12 +111,12 @@
           <div class="grid-2">
             <div class="card">
               <h3>Emission Sources</h3>
-              <div class="chart-wrap"><canvas id="donut-chart" height="240"></canvas></div>
+              <div class="chart-wrap"><canvas id="donut-chart" height="240" role="img" aria-label="Doughnut chart of emission sources"></canvas></div>
               <ul class="legend" id="donut-legend"></ul>
             </div>
             <div class="card">
               <h3>Your Carbon Journey</h3>
-              <div class="chart-wrap"><canvas id="trend-chart" height="240"></canvas></div>
+              <div class="chart-wrap"><canvas id="trend-chart" height="240" role="img" aria-label="Line chart of your monthly carbon score"></canvas></div>
             </div>
           </div>
 
@@ -188,7 +188,7 @@
                   </div>
                 </div>
                 <h4>Where your emissions come from</h4>
-                <div class="chart-wrap"><canvas id="breakdown-chart" height="220"></canvas></div>
+                <div class="chart-wrap"><canvas id="breakdown-chart" height="220" role="img" aria-label="Bar chart of your emissions by category"></canvas></div>
                 <table id="breakdown-table" class="visually-hidden-focusable">
                   <caption>Annual emissions by category (kg CO₂e)</caption>
                   <thead><tr><th>Category</th><th>kg CO₂e per year</th></tr></thead>
@@ -211,7 +211,7 @@
             <div class="card forecast-card">
               <h3>🔮 AI Forecast</h3>
               <div class="forecast" id="forecast"></div>
-              <div class="chart-wrap"><canvas id="forecast-chart" height="220"></canvas></div>
+              <div class="chart-wrap"><canvas id="forecast-chart" height="220" role="img" aria-label="Forecast chart projecting your next carbon score"></canvas></div>
             </div>
             <div class="card">
               <h3>⚡ Smart Alerts</h3>
